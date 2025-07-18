@@ -155,7 +155,10 @@ const Dashboard = () => {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-card border-white/10 hover:shadow-primary transition-all duration-300 cursor-pointer group">
+          <Card 
+            className="bg-gradient-card border-white/10 hover:shadow-primary transition-all duration-300 cursor-pointer group"
+            onClick={() => navigate('/projects')}
+          >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="w-12 h-12 bg-gradient-primary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -172,7 +175,10 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-card border-white/10 hover:shadow-secondary transition-all duration-300 cursor-pointer group">
+          <Card 
+            className="bg-gradient-card border-white/10 hover:shadow-secondary transition-all duration-300 cursor-pointer group"
+            onClick={() => navigate('/offers')}
+          >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="w-12 h-12 bg-gradient-secondary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -189,7 +195,10 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-card border-white/10 hover:shadow-tertiary transition-all duration-300 cursor-pointer group">
+          <Card 
+            className="bg-gradient-card border-white/10 hover:shadow-tertiary transition-all duration-300 cursor-pointer group"
+            onClick={() => navigate('/messages')}
+          >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="w-12 h-12 bg-gradient-tertiary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
@@ -206,7 +215,10 @@ const Dashboard = () => {
             </CardContent>
           </Card>
 
-          <Card className="bg-gradient-card border-white/10 hover:shadow-primary transition-all duration-300 cursor-pointer group">
+          <Card 
+            className="bg-gradient-card border-white/10 hover:shadow-primary transition-all duration-300 cursor-pointer group"
+            onClick={() => navigate('/finances')}
+          >
             <CardHeader className="pb-3">
               <div className="flex items-center justify-between">
                 <div className="w-12 h-12 bg-gradient-primary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
