@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,14 +7,25 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Briefcase, Shield, Zap } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { Users, Briefcase, Shield, Zap, AlertCircle } from 'lucide-react';
+
+interface Invitation {
+  email: string;
+  role: 'MANAGER' | 'FREELANCER';
+  token: string;
+}
 
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [role, setRole] = useState<'MANAGER' | 'FREELANCER'>('FREELANCER');
   const [loading, setLoading] = useState(false);
+  const [invitation, setInvitation] = useState<Invitation | null>(null);
+  const [invitationLoading, setInvitationLoading] = useState(false);
+  const [searchParams] = useSearchParams();
   const { signIn, signUp, user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
@@ -24,6 +35,49 @@ const Auth = () => {
       navigate('/dashboard');
     }
   }, [user, navigate]);
+
+  // Check for invitation token in URL
+  useEffect(() => {
+    const token = searchParams.get('token');
+    if (token) {
+      validateInvitation(token);
+    }
+  }, [searchParams]);
+
+  const validateInvitation = async (token: string) => {
+    setInvitationLoading(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('validate-invitation', {
+        body: { token }
+      });
+
+      if (error) throw error;
+
+      if (data.valid) {
+        setInvitation(data.invitation);
+        setEmail(data.invitation.email);
+        setRole(data.invitation.role);
+        toast({
+          title: "Invitation Found",
+          description: `You're invited to join as a ${data.invitation.role.toLowerCase()}!`,
+        });
+      } else {
+        toast({
+          title: "Invalid Invitation",
+          description: data.error || "This invitation link is not valid.",
+          variant: "destructive",
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error validating invitation",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setInvitationLoading(false);
+    }
+  };
 
   const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,23 +105,61 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
 
-    const { error } = await signUp(email, password, role);
+    // Check if signup is invitation-only
+    if (!invitation) {
+      toast({
+        title: "Invitation Required",
+        description: "You need an invitation to sign up. Please contact an administrator.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
+    const { data, error } = await signUp(email, password, role);
 
     if (error) {
       toast({
-        title: "Error creating account",
+        title: "Error signing up",
         description: error.message,
         variant: "destructive",
       });
-    } else {
-      toast({
-        title: "Account created!",
-        description: "Please check your email for verification.",
-      });
+    } else if (data.user) {
+      // Complete the invitation process
+      try {
+        const { error: invitationError } = await supabase.functions.invoke('complete-invitation', {
+          body: { 
+            token: invitation.token,
+            userId: data.user.id
+          }
+        });
+
+        if (invitationError) {
+          console.error('Error completing invitation:', invitationError);
+        }
+
+        toast({
+          title: "Welcome!",
+          description: `Your ${role.toLowerCase()} account has been created successfully.`,
+        });
+      } catch (error) {
+        console.error('Error completing invitation:', error);
+      }
     }
 
     setLoading(false);
   };
+
+  if (invitationLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background via-background to-muted flex items-center justify-center">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+          <span className="text-lg">Validating invitation...</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4 relative overflow-hidden">
@@ -95,64 +187,74 @@ const Auth = () => {
           </p>
         </div>
 
-        <Card className="bg-gradient-card border-white/10 backdrop-blur-glass shadow-elegant">
-          <CardHeader className="text-center">
-            <CardTitle className="text-2xl">Get Started</CardTitle>
+        <Card className="w-full max-w-md shadow-xl bg-card/95 backdrop-blur-sm border border-border/50">
+          <CardHeader className="space-y-1 text-center">
+            <div className="flex items-center justify-center w-12 h-12 mx-auto mb-4 bg-primary/10 rounded-full">
+              <Shield className="w-6 h-6 text-primary" />
+            </div>
+            <CardTitle className="text-2xl font-bold">
+              {invitation ? `Join as ${invitation.role}` : 'Welcome'}
+            </CardTitle>
             <CardDescription>
-              Sign in to your account or create a new one
+              {invitation 
+                ? `You've been invited to join as a ${invitation.role.toLowerCase()}`
+                : 'Sign in to your account or create a new one'
+              }
             </CardDescription>
+            {invitation && (
+              <Alert className="mt-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription>
+                  Invitation for: <strong>{invitation.email}</strong>
+                </AlertDescription>
+              </Alert>
+            )}
           </CardHeader>
           <CardContent>
-            <Tabs defaultValue="signin" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 mb-6">
-                <TabsTrigger value="signin">Sign In</TabsTrigger>
-                <TabsTrigger value="signup">Sign Up</TabsTrigger>
+            <Tabs defaultValue={invitation ? "signup" : "signin"} className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="signin" disabled={!!invitation}>Sign In</TabsTrigger>
+                <TabsTrigger value="signup">
+                  {invitation ? 'Complete Signup' : 'Sign Up'}
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="signin">
                 <form onSubmit={handleSignIn} className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
+                    <Label htmlFor="signin-email">Email</Label>
                     <Input
-                      id="email"
+                      id="signin-email"
                       type="email"
-                      placeholder="you@company.com"
+                      placeholder="your@email.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="bg-muted/20 border-white/10"
+                      disabled={!!invitation}
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="password">Password</Label>
+                    <Label htmlFor="signin-password">Password</Label>
                     <Input
-                      id="password"
+                      id="signin-password"
                       type="password"
                       placeholder="Enter your password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="bg-muted/20 border-white/10"
                     />
                   </div>
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    size="lg"
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        Signing in...
-                      </div>
-                    ) : (
-                      <>
-                        <Shield className="w-4 h-4" />
-                        Sign In
-                      </>
-                    )}
+                  <Button type="submit" className="w-full" disabled={loading || !!invitation}>
+                    {loading ? 'Signing in...' : 'Sign In'}
                   </Button>
+                  {invitation && (
+                    <Alert>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertDescription>
+                        You have an invitation. Please complete the signup process instead.
+                      </AlertDescription>
+                    </Alert>
+                  )}
                 </form>
               </TabsContent>
 
@@ -163,11 +265,11 @@ const Auth = () => {
                     <Input
                       id="signup-email"
                       type="email"
-                      placeholder="you@company.com"
+                      placeholder="your@email.com"
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      className="bg-muted/20 border-white/10"
+                      disabled={!!invitation}
                     />
                   </div>
                   <div className="space-y-2">
@@ -175,66 +277,51 @@ const Auth = () => {
                     <Input
                       id="signup-password"
                       type="password"
-                      placeholder="Create a strong password"
+                      placeholder="Create a password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      className="bg-muted/20 border-white/10"
                     />
                   </div>
-                  
-                  <div className="space-y-3">
-                    <Label>I am a...</Label>
-                    <RadioGroup value={role} onValueChange={(value) => setRole(value as 'MANAGER' | 'FREELANCER')}>
-                      <div className="flex items-center space-x-3 p-3 rounded-lg border border-white/10 bg-muted/10 hover:bg-muted/20 transition-colors">
-                        <RadioGroupItem value="FREELANCER" id="freelancer" />
-                        <Label htmlFor="freelancer" className="flex-1 cursor-pointer">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-gradient-tertiary rounded-lg flex items-center justify-center">
-                              <Briefcase className="w-4 h-4 text-tertiary-foreground" />
-                            </div>
-                            <div>
-                              <div className="font-medium">Freelancer</div>
-                              <div className="text-sm text-muted-foreground">Submit offers and work on projects</div>
-                            </div>
+                  {!invitation && (
+                    <>
+                      <div className="space-y-3">
+                        <Label>Account Type</Label>
+                        <RadioGroup value={role} onValueChange={(value) => setRole(value as 'MANAGER' | 'FREELANCER')}>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="FREELANCER" id="freelancer" />
+                            <Label htmlFor="freelancer" className="flex items-center gap-2 cursor-pointer">
+                              <Briefcase className="w-4 h-4" />
+                              Freelancer
+                            </Label>
                           </div>
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-3 p-3 rounded-lg border border-white/10 bg-muted/10 hover:bg-muted/20 transition-colors">
-                        <RadioGroupItem value="MANAGER" id="manager" />
-                        <Label htmlFor="manager" className="flex-1 cursor-pointer">
-                          <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 bg-gradient-secondary rounded-lg flex items-center justify-center">
-                              <Users className="w-4 h-4 text-secondary-foreground" />
-                            </div>
-                            <div>
-                              <div className="font-medium">Manager</div>
-                              <div className="text-sm text-muted-foreground">Create projects and manage teams</div>
-                            </div>
+                          <div className="flex items-center space-x-2">
+                            <RadioGroupItem value="MANAGER" id="manager" />
+                            <Label htmlFor="manager" className="flex items-center gap-2 cursor-pointer">
+                              <Users className="w-4 h-4" />
+                              Manager
+                            </Label>
                           </div>
-                        </Label>
+                        </RadioGroup>
                       </div>
-                    </RadioGroup>
-                  </div>
-
-                  <Button 
-                    type="submit" 
-                    className="w-full" 
-                    size="lg"
-                    variant={role === 'MANAGER' ? 'secondary' : 'tertiary'}
-                    disabled={loading}
-                  >
-                    {loading ? (
-                      <div className="flex items-center gap-2">
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
-                        Creating account...
-                      </div>
-                    ) : (
-                      <>
-                        <Zap className="w-4 h-4" />
-                        Create Account
-                      </>
-                    )}
+                      <Alert>
+                        <AlertCircle className="h-4 w-4" />
+                        <AlertDescription>
+                          Signup is currently invitation-only. Please contact an administrator for an invitation.
+                        </AlertDescription>
+                      </Alert>
+                    </>
+                  )}
+                  {invitation && (
+                    <Alert>
+                      <Zap className="h-4 w-4" />
+                      <AlertDescription>
+                        You're joining as a <strong>{invitation.role}</strong> with email: <strong>{invitation.email}</strong>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  <Button type="submit" className="w-full" disabled={loading || (!invitation)}>
+                    {loading ? 'Creating account...' : invitation ? 'Complete Signup' : 'Invitation Required'}
                   </Button>
                 </form>
               </TabsContent>

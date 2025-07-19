@@ -263,6 +263,42 @@ export type Database = {
           },
         ]
       }
+      invitations: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          invited_by: string
+          role: string
+          token: string
+          updated_at: string
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          invited_by: string
+          role: string
+          token: string
+          updated_at?: string
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          invited_by?: string
+          role?: string
+          token?: string
+          updated_at?: string
+          used_at?: string | null
+        }
+        Relationships: []
+      }
       Invoice: {
         Row: {
           fileName: string
@@ -564,6 +600,7 @@ export type Database = {
           createdAt: string
           email: string
           id: string
+          is_superadmin: boolean | null
           name: string | null
           role: Database["public"]["Enums"]["UserRole"]
         }
@@ -572,6 +609,7 @@ export type Database = {
           createdAt?: string
           email: string
           id: string
+          is_superadmin?: boolean | null
           name?: string | null
           role?: Database["public"]["Enums"]["UserRole"]
         }
@@ -580,6 +618,7 @@ export type Database = {
           createdAt?: string
           email?: string
           id?: string
+          is_superadmin?: boolean | null
           name?: string | null
           role?: Database["public"]["Enums"]["UserRole"]
         }

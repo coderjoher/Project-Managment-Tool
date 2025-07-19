@@ -5,9 +5,11 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Users, Search, Mail, Calendar, User, Briefcase, Star, Eye } from 'lucide-react';
+import { ArrowLeft, Users, Search, Mail, Calendar, User, Briefcase, Star, Eye, Plus, Send } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface FreelancerProfile {
@@ -43,6 +45,9 @@ const Freelancers = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [filteredFreelancers, setFilteredFreelancers] = useState<FreelancerProfile[]>([]);
+  const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteLoading, setInviteLoading] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -173,6 +178,52 @@ const Freelancers = () => {
     setFreelancerStats(stats);
   };
 
+  const handleInviteFreelancer = async () => {
+    if (!inviteEmail || !user) return;
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(inviteEmail)) {
+      toast({
+        title: "Invalid Email",
+        description: "Please enter a valid email address.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setInviteLoading(true);
+    try {
+      const { error } = await supabase.functions.invoke('send-invitation', {
+        body: {
+          email: inviteEmail,
+          role: 'FREELANCER'
+        },
+        headers: {
+          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+        }
+      });
+
+      if (error) throw error;
+
+      toast({
+        title: "Invitation Sent",
+        description: `Invitation has been sent to ${inviteEmail}`,
+      });
+
+      setInviteEmail('');
+      setIsInviteDialogOpen(false);
+    } catch (error: any) {
+      toast({
+        title: "Error sending invitation",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setInviteLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -218,6 +269,56 @@ const Freelancers = () => {
               <Users className="w-4 h-4 mr-1" />
               {freelancers.length} Freelancers
             </Badge>
+            <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+              <DialogTrigger asChild>
+                <Button className="gap-2">
+                  <Plus className="w-4 h-4" />
+                  Invite Freelancer
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Invite New Freelancer</DialogTitle>
+                  <DialogDescription>
+                    Send an invitation email to a new freelancer. They will receive a one-time signup link.
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="invite-email">Email Address</Label>
+                    <Input
+                      id="invite-email"
+                      type="email"
+                      placeholder="freelancer@example.com"
+                      value={inviteEmail}
+                      onChange={(e) => setInviteEmail(e.target.value)}
+                    />
+                  </div>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button 
+                      onClick={handleInviteFreelancer} 
+                      disabled={inviteLoading || !inviteEmail}
+                      className="gap-2"
+                    >
+                      {inviteLoading ? (
+                        <>
+                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Send className="w-4 h-4" />
+                          Send Invitation
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
           </div>
         </div>
 
