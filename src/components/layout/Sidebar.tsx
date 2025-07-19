@@ -11,9 +11,7 @@ import {
   LogOut,
   BarChart3,
   CheckCircle,
-  Tag,
-  Shield,
-  UserPlus
+  Tag
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -22,7 +20,6 @@ interface SidebarProps {
     name: string | null;
     email: string;
     role: 'MANAGER' | 'FREELANCER';
-    is_superadmin?: boolean;
   } | null;
 }
 
@@ -62,13 +59,6 @@ const Sidebar: React.FC<SidebarProps> = ({ userProfile }) => {
       baseItems.splice(3, 0, { path: '/categories', label: 'Categories', icon: Tag });
       // Add Freelancers for managers at index 4
       baseItems.splice(4, 0, { path: '/freelancers', label: 'Freelancers', icon: Users });
-      // Add Invitations for managers at index 5
-      baseItems.splice(5, 0, { path: '/invitations', label: 'Invitations', icon: UserPlus });
-    }
-    
-    // Add SuperAdmin link for superadmin users
-    if (userProfile?.is_superadmin) {
-      baseItems.push({ path: '/superadmin', label: 'Super Admin', icon: Shield });
     }
     
     return baseItems;

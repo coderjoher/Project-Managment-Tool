@@ -31,7 +31,6 @@ interface UserProfile {
   name: string | null;
   email: string;
   role: 'MANAGER' | 'FREELANCER';
-  is_superadmin: boolean;
 }
 
 const Dashboard = () => {
@@ -110,7 +109,8 @@ const Dashboard = () => {
   const isManager = userProfile?.role === 'MANAGER';
 
   return (
-    <Layout userProfile={userProfile}>
+    <div className="min-h-screen bg-background flex">
+      {/* Main Content */}
       <div className="flex-1 flex flex-col">
         {/* Header */}
         <header className="bg-card border-b border-border p-6">
@@ -315,7 +315,7 @@ const Dashboard = () => {
           </div>
         </main>
       </div>
-    </Layout>
+    </div>
   );
 };
 
