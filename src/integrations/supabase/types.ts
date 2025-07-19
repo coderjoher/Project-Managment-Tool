@@ -14,6 +14,47 @@ export type Database = {
   }
   public: {
     Tables: {
+      CategoryStatus: {
+        Row: {
+          categoryId: string
+          color: string | null
+          createdAt: string | null
+          description: string | null
+          id: string
+          order: number | null
+          title: string
+          updatedAt: string | null
+        }
+        Insert: {
+          categoryId: string
+          color?: string | null
+          createdAt?: string | null
+          description?: string | null
+          id?: string
+          order?: number | null
+          title: string
+          updatedAt?: string | null
+        }
+        Update: {
+          categoryId?: string
+          color?: string | null
+          createdAt?: string | null
+          description?: string | null
+          id?: string
+          order?: number | null
+          title?: string
+          updatedAt?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "CategoryStatus_categoryId_fkey"
+            columns: ["categoryId"]
+            isOneToOne: false
+            referencedRelation: "ProjectCategory"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       Chat: {
         Row: {
           createdAt: string
@@ -88,6 +129,53 @@ export type Database = {
             columns: ["senderId"]
             isOneToOne: false
             referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      CustomerDetails: {
+        Row: {
+          createdAt: string | null
+          customerAddress: string | null
+          customerCompany: string | null
+          customerEmail: string | null
+          customerName: string
+          customerPhone: string | null
+          id: string
+          notes: string | null
+          projectId: string
+          updatedAt: string | null
+        }
+        Insert: {
+          createdAt?: string | null
+          customerAddress?: string | null
+          customerCompany?: string | null
+          customerEmail?: string | null
+          customerName: string
+          customerPhone?: string | null
+          id?: string
+          notes?: string | null
+          projectId: string
+          updatedAt?: string | null
+        }
+        Update: {
+          createdAt?: string | null
+          customerAddress?: string | null
+          customerCompany?: string | null
+          customerEmail?: string | null
+          customerName?: string
+          customerPhone?: string | null
+          id?: string
+          notes?: string | null
+          projectId?: string
+          updatedAt?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "CustomerDetails_projectId_fkey"
+            columns: ["projectId"]
+            isOneToOne: false
+            referencedRelation: "Project"
             referencedColumns: ["id"]
           },
         ]
@@ -257,7 +345,9 @@ export type Database = {
       }
       Project: {
         Row: {
+          briefDetails: string | null
           budget: number | null
+          categoryId: string | null
           clickupTaskId: string | null
           createdAt: string
           deadline: string | null
@@ -266,11 +356,14 @@ export type Database = {
           id: string
           managerId: string
           status: Database["public"]["Enums"]["ProjectStatus"]
+          statusId: string | null
           title: string
           updatedAt: string
         }
         Insert: {
+          briefDetails?: string | null
           budget?: number | null
+          categoryId?: string | null
           clickupTaskId?: string | null
           createdAt?: string
           deadline?: string | null
@@ -279,11 +372,14 @@ export type Database = {
           id: string
           managerId: string
           status?: Database["public"]["Enums"]["ProjectStatus"]
+          statusId?: string | null
           title: string
           updatedAt: string
         }
         Update: {
+          briefDetails?: string | null
           budget?: number | null
+          categoryId?: string | null
           clickupTaskId?: string | null
           createdAt?: string
           deadline?: string | null
@@ -292,13 +388,170 @@ export type Database = {
           id?: string
           managerId?: string
           status?: Database["public"]["Enums"]["ProjectStatus"]
+          statusId?: string | null
           title?: string
           updatedAt?: string
         }
         Relationships: [
           {
+            foreignKeyName: "Project_categoryId_fkey"
+            columns: ["categoryId"]
+            isOneToOne: false
+            referencedRelation: "ProjectCategory"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "Project_managerId_fkey"
             columns: ["managerId"]
+            isOneToOne: false
+            referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "Project_statusId_fkey"
+            columns: ["statusId"]
+            isOneToOne: false
+            referencedRelation: "CategoryStatus"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ProjectCategory: {
+        Row: {
+          color: string | null
+          createdAt: string | null
+          description: string | null
+          id: string
+          managerId: string
+          status: string
+          title: string
+          updatedAt: string | null
+        }
+        Insert: {
+          color?: string | null
+          createdAt?: string | null
+          description?: string | null
+          id?: string
+          managerId: string
+          status?: string
+          title: string
+          updatedAt?: string | null
+        }
+        Update: {
+          color?: string | null
+          createdAt?: string | null
+          description?: string | null
+          id?: string
+          managerId?: string
+          status?: string
+          title?: string
+          updatedAt?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ProjectCategory_managerId_fkey"
+            columns: ["managerId"]
+            isOneToOne: false
+            referencedRelation: "User"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ProjectFinancial: {
+        Row: {
+          amount: number | null
+          createdAt: string | null
+          description: string
+          dueDate: string | null
+          id: string
+          isPaid: boolean | null
+          notes: string | null
+          paidAt: string | null
+          percentage: number
+          projectId: string
+          updatedAt: string | null
+        }
+        Insert: {
+          amount?: number | null
+          createdAt?: string | null
+          description: string
+          dueDate?: string | null
+          id?: string
+          isPaid?: boolean | null
+          notes?: string | null
+          paidAt?: string | null
+          percentage?: number
+          projectId: string
+          updatedAt?: string | null
+        }
+        Update: {
+          amount?: number | null
+          createdAt?: string | null
+          description?: string
+          dueDate?: string | null
+          id?: string
+          isPaid?: boolean | null
+          notes?: string | null
+          paidAt?: string | null
+          percentage?: number
+          projectId?: string
+          updatedAt?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ProjectFinancial_projectId_fkey"
+            columns: ["projectId"]
+            isOneToOne: false
+            referencedRelation: "Project"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ProjectLog: {
+        Row: {
+          action: string
+          createdAt: string | null
+          description: string | null
+          id: string
+          metadata: Json | null
+          newValue: string | null
+          oldValue: string | null
+          projectId: string
+          userId: string
+        }
+        Insert: {
+          action: string
+          createdAt?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          newValue?: string | null
+          oldValue?: string | null
+          projectId: string
+          userId: string
+        }
+        Update: {
+          action?: string
+          createdAt?: string | null
+          description?: string | null
+          id?: string
+          metadata?: Json | null
+          newValue?: string | null
+          oldValue?: string | null
+          projectId?: string
+          userId?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ProjectLog_projectId_fkey"
+            columns: ["projectId"]
+            isOneToOne: false
+            referencedRelation: "Project"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ProjectLog_userId_fkey"
+            columns: ["userId"]
             isOneToOne: false
             referencedRelation: "User"
             referencedColumns: ["id"]
