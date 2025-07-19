@@ -182,34 +182,31 @@ const Freelancers = () => {
   };
 
   const handleInviteFreelancer = async () => {
-    if (!inviteEmail || !user) return;
-
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(inviteEmail)) {
-      toast({
-        title: "Invalid Email",
-        description: "Please enter a valid email address.",
-        variant: "destructive",
-      });
-      return;
-    }
+    if (!user) return;
 
     setInviteLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('send-invitation', {
-        body: {
+      // Generate a unique token
+      const token = crypto.randomUUID();
+      
+      // Set expiry to 7 days from now
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7);
+
+      // Create invitation record
+      const { error: inviteError } = await supabase
+        .from('invitations')
+        .insert({
+          token,
+          role: 'FREELANCER',
           email: inviteEmail,
-          role: 'FREELANCER'
-        },
-        headers: {
-          'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
-        }
-      });
+          invited_by: user?.id,
+          expires_at: expiresAt.toISOString(),
+        });
 
-      if (error) throw error;
+      if (inviteError) throw inviteError;
 
-      setGeneratedInviteUrl(data.invitationUrl);
+      setGeneratedInviteUrl(`${window.location.origin}/auth?token=${token}`);
       toast({
         title: "Invitation Link Generated",
         description: `Invitation link has been created for ${inviteEmail}`,
@@ -218,7 +215,7 @@ const Freelancers = () => {
       setInviteEmail('');
     } catch (error: any) {
       toast({
-        title: "Error sending invitation",
+        title: "Error generating invitation",
         description: error.message,
         variant: "destructive",
       });

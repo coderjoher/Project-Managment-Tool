@@ -21,6 +21,7 @@ interface Invitation {
 const Auth = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [name, setName] = useState('');
   const [role, setRole] = useState<'MANAGER' | 'FREELANCER'>('FREELANCER');
   const [loading, setLoading] = useState(false);
   const [invitation, setInvitation] = useState<Invitation | null>(null);
@@ -65,10 +66,14 @@ const Auth = () => {
       } else {
         setRole(invite.role as 'MANAGER' | 'FREELANCER');
         setInvitation({
-          email: '',
+          email: invite.email,
           role: invite.role as 'MANAGER' | 'FREELANCER',
           token: invite.token,
         });
+        // Pre-fill email if provided in invitation
+        if (invite.email) {
+          setEmail(invite.email);
+        }
       }
     } catch (error: any) {
       toast({
@@ -118,6 +123,17 @@ const Auth = () => {
       return;
     }
 
+    // Validate name field
+    if (!name.trim()) {
+      toast({
+        title: "Name Required",
+        description: "Please enter your name.",
+        variant: "destructive",
+      });
+      setLoading(false);
+      return;
+    }
+
     const { data, error } = await signUp(email, password, role);
 
     if (error) {
@@ -127,25 +143,51 @@ const Auth = () => {
         variant: "destructive",
       });
     } else if (data.user) {
-      // Complete the invitation process
       try {
-        const { error: invitationError } = await supabase
-          .from('invitations')
-          .update({
-            used_at: new Date().toISOString(),
-          })
-          .eq('token', invitation.token);
+        // Create user profile
+        const { error: profileError } = await supabase
+          .from('User')
+          .insert({
+            id: data.user.id,
+            email: data.user.email,
+            name: name.trim(),
+            role: role,
+          });
 
-        if (invitationError) {
-          console.error('Error completing invitation:', invitationError);
+        if (profileError) {
+          console.error('Error creating user profile:', profileError);
+          throw profileError;
+        }
+
+        // Mark invitation as used
+        // Try multiple approaches to update the invitation
+        let invitationError = null;
+        
+        // Approach 1: Try direct update (this might work after user profile is created)
+        const { error: directError } = await supabase
+          .from('invitations')
+          .update({ used_at: new Date().toISOString() })
+          .eq('token', invitation.token)
+          .eq('email', email); // Match by email as well for additional security
+        
+        if (directError) {
+          console.error('Direct update failed:', directError);
+          invitationError = directError;
+        } else {
+          console.log('Successfully marked invitation as used');
         }
 
         toast({
           title: "Welcome!",
           description: `Your ${role.toLowerCase()} account has been created successfully.`,
         });
-      } catch (error) {
-        console.error('Error completing invitation:', error);
+      } catch (error: any) {
+        console.error('Error completing signup:', error);
+        toast({
+          title: "Signup Error",
+          description: "Account created but there was an issue setting up your profile. Please try signing in.",
+          variant: "destructive",
+        });
       }
     }
 
@@ -232,7 +274,6 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      disabled={!!invitation}
                     />
                   </div>
                   <div className="space-y-2">
@@ -263,6 +304,17 @@ const Auth = () => {
               <TabsContent value="signup">
                 <form onSubmit={handleSignUp} className="space-y-4">
                   <div className="space-y-2">
+                    <Label htmlFor="signup-name">Full Name</Label>
+                    <Input
+                      id="signup-name"
+                      type="text"
+                      placeholder="Enter your full name"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="signup-email">Email</Label>
                     <Input
                       id="signup-email"
@@ -271,7 +323,7 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      disabled={!!invitation}
+                      disabled={invitation?.email ? true : false}
                     />
                   </div>
                   <div className="space-y-2">
