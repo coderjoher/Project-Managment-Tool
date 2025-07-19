@@ -290,9 +290,9 @@ const Freelancers = () => {
               <Users className="w-4 h-4 mr-1" />
               {freelancers.length} Freelancers
             </Badge>
-            <Dialog open={isInviteDialogOpen} onOpenChange={handleCloseInviteDialog}>
+            <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="gap-2">
+                <Button className="gap-2" onClick={() => setIsInviteDialogOpen(true)}>
                   <Plus className="w-4 h-4" />
                   Invite Freelancer
                 </Button>

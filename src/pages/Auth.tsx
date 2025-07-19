@@ -36,15 +36,53 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
-  // Check for invitation token in URL
+  // Check for invite token (superadmin bypass)
   useEffect(() => {
-    const token = searchParams.get('token');
+    const inviteToken = searchParams.get('token');
+    if (inviteToken) {
+      validateInviteToken(inviteToken);
+    } else {
     if (token) {
       validateInvitation(token);
     }
   }, [searchParams]);
 
-  const validateInvitation = async (token: string) => {
+  const validateInviteToken = async (token: string) => {
+    setInvitationLoading(true);
+    try {
+      const { data: invite, error: inviteError } = await supabase
+        .from('invitations')
+        .select('*')
+        .eq('token', token)
+        .is('used_at', null)
+        .gt('expires_at', new Date().toISOString())
+        .single();
+
+      if (inviteError || !invite) {
+        toast({
+          title: 'Invalid or expired token',
+          description: 'This signup link is no longer valid.',
+          variant: 'destructive',
+        });
+        navigate('/', { replace: true });
+      } else {
+        setRole(invite.role);
+        setInvitation({
+          email: '',
+          role: invite.role,
+          token: invite.token,
+        });
+      }
+    } catch (error: any) {
+      toast({
+        title: "Error loading invitation",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setInvitationLoading(false);
+    }
+  };
     setInvitationLoading(true);
     try {
       const { data, error } = await supabase.functions.invoke('validate-invitation', {
@@ -127,7 +165,12 @@ const Auth = () => {
     } else if (data.user) {
       // Complete the invitation process
       try {
-        const { error: invitationError } = await supabase.functions.invoke('complete-invitation', {
+        const { error: invitationError } = await supabase
+          .from('invitations')
+          .update({
+            used_at: new Date().toISOString(),
+          })
+          .eq('token', invitation.token);
           body: { 
             token: invitation.token,
             userId: data.user.id
