@@ -11,34 +11,30 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, DollarSign, TrendingUp, Upload, FileText, Plus, CreditCard } from 'lucide-react';
+import { ArrowLeft, DollarSign, TrendingUp, Send, Gift, Plus, ArrowUp, ArrowDown, Users, Calendar, Eye } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 
-interface Financial {
+interface FreelancerFinancial {
+  freelancerId: string;
+  freelancerName: string;
+  freelancerEmail: string;
+  freelancerAvatar?: string;
+  totalEarned: number;
+  totalPending: number;
+  projectCount: number;
+  lastPayment?: string;
+  projects: ProjectFinancial[];
+}
+
+interface ProjectFinancial {
   id: string;
   projectId: string;
-  estimatedBudget: number | null;
+  projectTitle: string;
   acceptedPrice: number;
   amountPaid: number;
   paymentStatus: 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE';
   createdAt: string;
-  updatedAt: string;
-  Project: {
-    title: string;
-    managerId: string;
-  };
-}
-
-interface FinancialUpdate {
-  id: string;
-  financialId: string;
-  amount: number | null;
-  description: string;
-  createdAt: string;
-  User: {
-    name: string | null;
-    email: string;
-  };
 }
 
 interface UserProfile {
@@ -49,15 +45,22 @@ const Finances = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [financials, setFinancials] = useState<Financial[]>([]);
-  const [selectedFinancial, setSelectedFinancial] = useState<Financial | null>(null);
-  const [updates, setUpdates] = useState<FinancialUpdate[]>([]);
+  const [freelancers, setFreelancers] = useState<FreelancerFinancial[]>([]);
+  const [selectedFreelancer, setSelectedFreelancer] = useState<FreelancerFinancial | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
-  const [updateForm, setUpdateForm] = useState({
+  const [isGiftDialogOpen, setIsGiftDialogOpen] = useState(false);
+  const [giftForm, setGiftForm] = useState({
     amount: '',
-    description: ''
+    description: '',
+    type: 'bonus' as 'bonus' | 'gift'
+  });
+
+  const [totalStats, setTotalStats] = useState({
+    totalPaid: 0,
+    totalPending: 0,
+    activeFreelancers: 0,
+    completedProjects: 0
   });
 
   useEffect(() => {
@@ -66,14 +69,8 @@ const Finances = () => {
       return;
     }
     fetchUserProfile();
-    fetchFinancials();
+    fetchFreelancersFinancials();
   }, [user, navigate]);
-
-  useEffect(() => {
-    if (selectedFinancial) {
-      fetchUpdates(selectedFinancial.id);
-    }
-  }, [selectedFinancial]);
 
   const fetchUserProfile = async () => {
     if (!user) return;
@@ -96,7 +93,7 @@ const Finances = () => {
     }
   };
 
-  const fetchFinancials = async () => {
+  const fetchFreelancersFinancials = async () => {
     if (!user) return;
     
     try {
@@ -107,52 +104,105 @@ const Finances = () => {
         .eq('id', user.id)
         .single();
 
-      let financials: Financial[] = [];
-
-      if (profile?.role === 'MANAGER') {
-        // For managers, get financials for their projects
-        const { data, error } = await supabase
-          .from('Financial')
-          .select(`
-            *,
-            Project!inner(title, managerId)
-          `)
-          .eq('Project.managerId', user.id)
-          .order('createdAt', { ascending: false });
-        
-        if (error) throw error;
-        financials = data || [];
-      } else {
-        // For freelancers, get financials for projects they have accepted offers on
-        const { data: acceptedOffers, error: offersError } = await supabase
-          .from('Offer')
-          .select('projectId')
-          .eq('freelancerId', user.id)
-          .eq('status', 'ACCEPTED');
-        
-        if (offersError) throw offersError;
-        
-        if (acceptedOffers && acceptedOffers.length > 0) {
-          const projectIds = acceptedOffers.map(offer => offer.projectId);
-          
-          const { data, error } = await supabase
-            .from('Financial')
-            .select(`
-              *,
-              Project!inner(title, managerId)
-            `)
-            .in('projectId', projectIds)
-            .order('createdAt', { ascending: false });
-          
-          if (error) throw error;
-          financials = data || [];
-        }
+      if (profile?.role !== 'MANAGER') {
+        // For non-managers, redirect or show different view
+        setLoading(false);
+        return;
       }
+
+      // Get all projects managed by this user with their financials and freelancers
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('Project')
+        .select(`
+          id,
+          title,
+          managerId,
+          Financial (
+            id,
+            projectId,
+            acceptedPrice,
+            amountPaid,
+            paymentStatus,
+            createdAt
+          ),
+          Offer!inner (
+            freelancerId,
+            status
+          )
+        `)
+        .eq('managerId', user.id)
+        .eq('Offer.status', 'ACCEPTED');
+
+      if (projectsError) throw projectsError;
+
+      // Get freelancer details
+      const freelancerIds = [...new Set(projectsData?.flatMap(p => p.Offer.map(o => o.freelancerId)) || [])];
       
-      setFinancials(financials);
+      const { data: freelancersData, error: freelancersError } = await supabase
+        .from('User')
+        .select('id, name, email, avatar')
+        .in('id', freelancerIds);
+
+      if (freelancersError) throw freelancersError;
+
+      // Process data to group by freelancer
+      const freelancerMap = new Map<string, FreelancerFinancial>();
       
-      if (financials.length > 0) {
-        setSelectedFinancial(financials[0]);
+      projectsData?.forEach(project => {
+        project.Offer.forEach(offer => {
+          if (offer.status === 'ACCEPTED') {
+            const freelancer = freelancersData?.find(f => f.id === offer.freelancerId);
+            if (!freelancer) return;
+
+            const financial = project.Financial[0];
+            if (!financial) return;
+
+            const key = offer.freelancerId;
+            
+            if (!freelancerMap.has(key)) {
+              freelancerMap.set(key, {
+                freelancerId: offer.freelancerId,
+                freelancerName: freelancer.name || 'Unknown',
+                freelancerEmail: freelancer.email,
+                freelancerAvatar: freelancer.avatar,
+                totalEarned: 0,
+                totalPending: 0,
+                projectCount: 0,
+                projects: []
+              });
+            }
+
+            const freelancerData = freelancerMap.get(key)!;
+            freelancerData.totalEarned += financial.amountPaid;
+            freelancerData.totalPending += (financial.acceptedPrice - financial.amountPaid);
+            freelancerData.projectCount++;
+            freelancerData.projects.push({
+              id: financial.id,
+              projectId: project.id,
+              projectTitle: project.title,
+              acceptedPrice: financial.acceptedPrice,
+              amountPaid: financial.amountPaid,
+              paymentStatus: financial.paymentStatus,
+              createdAt: financial.createdAt
+            });
+          }
+        });
+      });
+
+      const freelancersList = Array.from(freelancerMap.values());
+      setFreelancers(freelancersList);
+
+      // Calculate total stats
+      const stats = {
+        totalPaid: freelancersList.reduce((sum, f) => sum + f.totalEarned, 0),
+        totalPending: freelancersList.reduce((sum, f) => sum + f.totalPending, 0),
+        activeFreelancers: freelancersList.length,
+        completedProjects: freelancersList.reduce((sum, f) => sum + f.projects.filter(p => p.paymentStatus === 'PAID').length, 0)
+      };
+      setTotalStats(stats);
+
+      if (freelancersList.length > 0) {
+        setSelectedFreelancer(freelancersList[0]);
       }
     } catch (error: any) {
       toast({
@@ -165,40 +215,19 @@ const Finances = () => {
     }
   };
 
-  const fetchUpdates = async (financialId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('FinancialUpdate')
-        .select(`
-          *,
-          User(name, email)
-        `)
-        .eq('financialId', financialId)
-        .order('createdAt', { ascending: false });
-      
-      if (error) throw error;
-      setUpdates(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error loading updates",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleAddUpdate = async (e: React.FormEvent) => {
+  const handleGiveGift = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFinancial || !user || userProfile?.role !== 'MANAGER') return;
+    if (!selectedFreelancer || !user) return;
 
     try {
+      // Create a special financial update for gifts/bonuses
       const updateId = crypto.randomUUID();
       
       const updateData = {
         id: updateId,
-        financialId: selectedFinancial.id,
-        amount: updateForm.amount ? parseFloat(updateForm.amount) : null,
-        description: updateForm.description,
+        financialId: selectedFreelancer.projects[0]?.id || '', // Use first project or create a general one
+        amount: parseFloat(giftForm.amount),
+        description: `${giftForm.type === 'gift' ? '🎁 Gift' : '💰 Bonus'}: ${giftForm.description}`,
         updatedById: user.id
       };
 
@@ -208,33 +237,17 @@ const Finances = () => {
 
       if (error) throw error;
 
-      // Update the financial record if amount was provided
-      if (updateForm.amount) {
-        const newAmountPaid = selectedFinancial.amountPaid + parseFloat(updateForm.amount);
-        const newStatus = newAmountPaid >= selectedFinancial.acceptedPrice ? 'PAID' : 'PARTIAL';
-
-        await supabase
-          .from('Financial')
-          .update({ 
-            amountPaid: newAmountPaid,
-            paymentStatus: newStatus,
-            updatedAt: new Date().toISOString()
-          })
-          .eq('id', selectedFinancial.id);
-      }
-
       toast({
-        title: "Update added successfully",
-        description: "Financial record has been updated",
+        title: `${giftForm.type === 'gift' ? 'Gift' : 'Bonus'} sent successfully!`,
+        description: `Sent $${giftForm.amount} to ${selectedFreelancer.freelancerName}`,
       });
 
-      setIsUpdateDialogOpen(false);
-      setUpdateForm({ amount: '', description: '' });
-      fetchFinancials();
-      fetchUpdates(selectedFinancial.id);
+      setIsGiftDialogOpen(false);
+      setGiftForm({ amount: '', description: '', type: 'bonus' });
+      fetchFreelancersFinancials();
     } catch (error: any) {
       toast({
-        title: "Error adding update",
+        title: "Error sending gift",
         description: error.message,
         variant: "destructive",
       });
@@ -264,76 +277,148 @@ const Finances = () => {
 
   const isManager = userProfile?.role === 'MANAGER';
 
+  if (!isManager) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <Card className="max-w-md w-full mx-4">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <DollarSign className="w-16 h-16 text-muted-foreground mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Manager Access Required</h3>
+            <p className="text-muted-foreground text-center mb-6">
+              This page is only available for managers to track freelancer payments.
+            </p>
+            <Button onClick={() => navigate('/dashboard')}>
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back to Dashboard
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
             <Button variant="ghost" onClick={() => navigate('/dashboard')}>
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
+              Back
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">Finances</h1>
-              <p className="text-muted-foreground">
-                {isManager ? 'Track payments and budgets' : 'View earnings and invoices'}
-              </p>
+              <h1 className="text-3xl font-bold">Financial Dashboard</h1>
+              <p className="text-muted-foreground">Manage freelancer payments and track earnings</p>
             </div>
           </div>
         </div>
 
-        {financials.length === 0 ? (
+        {/* Top Cards - Summary */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card className="bg-gradient-to-r from-green-500/10 to-green-600/10 border-green-500/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Paid</p>
+                  <p className="text-2xl font-bold text-green-600">${totalStats.totalPaid.toLocaleString()}</p>
+                </div>
+                <TrendingUp className="h-8 w-8 text-green-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 border-blue-500/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Total Pending</p>
+                  <p className="text-2xl font-bold text-blue-600">${totalStats.totalPending.toLocaleString()}</p>
+                </div>
+                <DollarSign className="h-8 w-8 text-blue-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-purple-500/10 to-purple-600/10 border-purple-500/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Active Freelancers</p>
+                  <p className="text-2xl font-bold text-purple-600">{totalStats.activeFreelancers}</p>
+                </div>
+                <Users className="h-8 w-8 text-purple-600" />
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-r from-orange-500/10 to-orange-600/10 border-orange-500/20">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-muted-foreground">Completed Projects</p>
+                  <p className="text-2xl font-bold text-orange-600">{totalStats.completedProjects}</p>
+                </div>
+                <Calendar className="h-8 w-8 text-orange-600" />
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {freelancers.length === 0 ? (
           <Card className="bg-gradient-card border-white/10">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <DollarSign className="w-16 h-16 text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No financial records found</h3>
+              <h3 className="text-xl font-semibold mb-2">No freelancers found</h3>
               <p className="text-muted-foreground text-center mb-6">
-                {isManager 
-                  ? "Financial records will appear here when you accept offers from freelancers."
-                  : "Your earnings and payment information will appear here when projects are active."
-                }
+                Freelancer financial data will appear here when you have active projects with accepted offers.
               </p>
             </CardContent>
           </Card>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Financial Records List */}
+            {/* Freelancers List */}
             <Card className="bg-gradient-card border-white/10">
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  Projects
+                  <Users className="w-5 h-5" />
+                  Freelancers
                 </CardTitle>
+                <CardDescription>Select a freelancer to view details</CardDescription>
               </CardHeader>
               <CardContent>
                 <div className="space-y-3">
-                  {financials.map((financial) => (
+                  {freelancers.map((freelancer) => (
                     <div
-                      key={financial.id}
-                      className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                        selectedFinancial?.id === financial.id 
-                          ? 'bg-primary/10 border border-primary/20' 
-                          : 'hover:bg-muted/20'
+                      key={freelancer.freelancerId}
+                      className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
+                        selectedFreelancer?.freelancerId === freelancer.freelancerId 
+                          ? 'bg-primary/10 border border-primary/20 scale-[1.02]' 
+                          : 'hover:bg-muted/20 hover:scale-[1.01]'
                       }`}
-                      onClick={() => setSelectedFinancial(financial)}
+                      onClick={() => setSelectedFreelancer(freelancer)}
                     >
-                      <div className="flex items-start justify-between">
-                        <h4 className="font-medium text-sm line-clamp-1">
-                          {financial.Project.title}
-                        </h4>
-                        <Badge className={getStatusColor(financial.paymentStatus)}>
-                          {financial.paymentStatus}
-                        </Badge>
-                      </div>
-                      <div className="mt-2">
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Paid: ${financial.amountPaid}</span>
-                          <span>Total: ${financial.acceptedPrice}</span>
+                      <div className="flex items-center gap-3 mb-3">
+                        <Avatar className="w-10 h-10">
+                          <AvatarImage src={freelancer.freelancerAvatar} />
+                          <AvatarFallback>
+                            {freelancer.freelancerName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <h4 className="font-medium text-sm truncate">{freelancer.freelancerName}</h4>
+                          <p className="text-xs text-muted-foreground truncate">{freelancer.freelancerEmail}</p>
                         </div>
-                        <Progress 
-                          value={(financial.amountPaid / financial.acceptedPrice) * 100} 
-                          className="mt-1 h-2"
-                        />
+                      </div>
+                      <div className="space-y-2">
+                        <div className="flex justify-between text-xs">
+                          <span className="text-green-600">Earned: ${freelancer.totalEarned.toLocaleString()}</span>
+                          <span className="text-blue-600">Pending: ${freelancer.totalPending.toLocaleString()}</span>
+                        </div>
+                        <div className="flex justify-between text-xs text-muted-foreground">
+                          <span>{freelancer.projectCount} projects</span>
+                          <span>{freelancer.projects.filter(p => p.paymentStatus === 'PAID').length} paid</span>
+                        </div>
                       </div>
                     </div>
                   ))}
@@ -341,80 +426,111 @@ const Finances = () => {
               </CardContent>
             </Card>
 
-            {/* Financial Details */}
+            {/* Freelancer Details */}
             <Card className="lg:col-span-2 bg-gradient-card border-white/10">
-              {selectedFinancial ? (
+              {selectedFreelancer ? (
                 <>
                   <CardHeader className="border-b border-white/10">
                     <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>{selectedFinancial.Project.title}</CardTitle>
-                        <CardDescription>
-                          Financial overview and payment tracking
-                        </CardDescription>
+                      <div className="flex items-center gap-4">
+                        <Avatar className="w-12 h-12">
+                          <AvatarImage src={selectedFreelancer.freelancerAvatar} />
+                          <AvatarFallback>
+                            {selectedFreelancer.freelancerName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div>
+                          <CardTitle>{selectedFreelancer.freelancerName}</CardTitle>
+                          <CardDescription>{selectedFreelancer.freelancerEmail}</CardDescription>
+                        </div>
                       </div>
-                      {isManager && (
-                        <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+                      <div className="flex gap-2">
+                        <Dialog open={isGiftDialogOpen} onOpenChange={setIsGiftDialogOpen}>
                           <DialogTrigger asChild>
-                            <Button>
-                              <Plus className="w-4 h-4 mr-2" />
-                              Add Update
+                            <Button variant="outline" size="sm">
+                              <Gift className="w-4 h-4 mr-2" />
+                              Send Gift
                             </Button>
                           </DialogTrigger>
                           <DialogContent>
                             <DialogHeader>
-                              <DialogTitle>Add Payment Update</DialogTitle>
+                              <DialogTitle>Send Gift or Bonus</DialogTitle>
                               <DialogDescription>
-                                Record a payment or add a note about the financial status.
+                                Send a bonus payment or gift to {selectedFreelancer.freelancerName}
                               </DialogDescription>
                             </DialogHeader>
-                            <form onSubmit={handleAddUpdate}>
+                            <form onSubmit={handleGiveGift}>
                               <div className="grid gap-4 py-4">
                                 <div className="grid gap-2">
-                                  <Label htmlFor="amount">Payment Amount (Optional)</Label>
+                                  <Label>Type</Label>
+                                  <div className="flex gap-2">
+                                    <Button
+                                      type="button"
+                                      variant={giftForm.type === 'bonus' ? 'default' : 'outline'}
+                                      size="sm"
+                                      onClick={() => setGiftForm(prev => ({ ...prev, type: 'bonus' }))}
+                                    >
+                                      💰 Bonus
+                                    </Button>
+                                    <Button
+                                      type="button"
+                                      variant={giftForm.type === 'gift' ? 'default' : 'outline'}
+                                      size="sm"
+                                      onClick={() => setGiftForm(prev => ({ ...prev, type: 'gift' }))}
+                                    >
+                                      🎁 Gift
+                                    </Button>
+                                  </div>
+                                </div>
+                                <div className="grid gap-2">
+                                  <Label htmlFor="gift-amount">Amount *</Label>
                                   <Input
-                                    id="amount"
+                                    id="gift-amount"
                                     type="number"
-                                    value={updateForm.amount}
-                                    onChange={(e) => setUpdateForm(prev => ({ ...prev, amount: e.target.value }))}
+                                    value={giftForm.amount}
+                                    onChange={(e) => setGiftForm(prev => ({ ...prev, amount: e.target.value }))}
                                     placeholder="0.00"
                                     min="0"
                                     step="0.01"
+                                    required
                                   />
                                 </div>
                                 <div className="grid gap-2">
-                                  <Label htmlFor="description">Description *</Label>
+                                  <Label htmlFor="gift-description">Message *</Label>
                                   <Textarea
-                                    id="description"
-                                    value={updateForm.description}
-                                    onChange={(e) => setUpdateForm(prev => ({ ...prev, description: e.target.value }))}
-                                    placeholder="Describe the payment or update"
+                                    id="gift-description"
+                                    value={giftForm.description}
+                                    onChange={(e) => setGiftForm(prev => ({ ...prev, description: e.target.value }))}
+                                    placeholder="Add a message for the gift/bonus"
                                     required
                                   />
                                 </div>
                               </div>
                               <DialogFooter>
-                                <Button type="button" variant="outline" onClick={() => setIsUpdateDialogOpen(false)}>
+                                <Button type="button" variant="outline" onClick={() => setIsGiftDialogOpen(false)}>
                                   Cancel
                                 </Button>
-                                <Button type="submit">Add Update</Button>
+                                <Button type="submit">
+                                  <Send className="w-4 h-4 mr-2" />
+                                  Send {giftForm.type === 'gift' ? 'Gift' : 'Bonus'}
+                                </Button>
                               </DialogFooter>
                             </form>
                           </DialogContent>
                         </Dialog>
-                      )}
+                      </div>
                     </div>
                   </CardHeader>
                   <CardContent className="space-y-6">
-                    {/* Summary Cards */}
+                    {/* Summary */}
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <Card className="bg-muted/10">
                         <CardContent className="p-4">
                           <div className="flex items-center gap-2">
-                            <DollarSign className="w-5 h-5 text-green-500" />
+                            <TrendingUp className="w-5 h-5 text-green-500" />
                             <div>
-                              <p className="text-sm text-muted-foreground">Total Value</p>
-                              <p className="text-xl font-bold">${selectedFinancial.acceptedPrice.toLocaleString()}</p>
+                              <p className="text-sm text-muted-foreground">Total Earned</p>
+                              <p className="text-xl font-bold">${selectedFreelancer.totalEarned.toLocaleString()}</p>
                             </div>
                           </div>
                         </CardContent>
@@ -422,10 +538,10 @@ const Finances = () => {
                       <Card className="bg-muted/10">
                         <CardContent className="p-4">
                           <div className="flex items-center gap-2">
-                            <CreditCard className="w-5 h-5 text-blue-500" />
+                            <DollarSign className="w-5 h-5 text-blue-500" />
                             <div>
-                              <p className="text-sm text-muted-foreground">Paid</p>
-                              <p className="text-xl font-bold">${selectedFinancial.amountPaid.toLocaleString()}</p>
+                              <p className="text-sm text-muted-foreground">Pending</p>
+                              <p className="text-xl font-bold">${selectedFreelancer.totalPending.toLocaleString()}</p>
                             </div>
                           </div>
                         </CardContent>
@@ -433,78 +549,76 @@ const Finances = () => {
                       <Card className="bg-muted/10">
                         <CardContent className="p-4">
                           <div className="flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-orange-500" />
+                            <Calendar className="w-5 h-5 text-purple-500" />
                             <div>
-                              <p className="text-sm text-muted-foreground">Remaining</p>
-                              <p className="text-xl font-bold">
-                                ${(selectedFinancial.acceptedPrice - selectedFinancial.amountPaid).toLocaleString()}
-                              </p>
+                              <p className="text-sm text-muted-foreground">Projects</p>
+                              <p className="text-xl font-bold">{selectedFreelancer.projectCount}</p>
                             </div>
                           </div>
                         </CardContent>
                       </Card>
                     </div>
 
-                    {/* Progress Bar */}
+                    {/* Projects List */}
                     <div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span>Payment Progress</span>
-                        <span>{Math.round((selectedFinancial.amountPaid / selectedFinancial.acceptedPrice) * 100)}%</span>
-                      </div>
-                      <Progress 
-                        value={(selectedFinancial.amountPaid / selectedFinancial.acceptedPrice) * 100} 
-                        className="h-3"
-                      />
-                    </div>
-
-                    {/* Payment Updates */}
-                    <div>
-                      <h3 className="font-semibold mb-4">Payment History</h3>
-                      {updates.length === 0 ? (
-                        <div className="text-center py-8">
-                          <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                          <p className="text-muted-foreground">No payment updates yet</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {updates.map((update) => (
-                            <Card key={update.id} className="bg-muted/10">
-                              <CardContent className="p-4">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <p className="text-sm">{update.description}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-xs text-muted-foreground">
-                                        By {update.User.name || update.User.email}
-                                      </span>
-                                      <span className="text-xs text-muted-foreground">
-                                        {format(new Date(update.createdAt), 'MMM dd, yyyy HH:mm')}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  {update.amount && (
-                                    <Badge variant="outline" className="text-green-600">
-                                      +${update.amount.toLocaleString()}
-                                    </Badge>
-                                  )}
+                      <h4 className="font-semibold mb-4">Project Financials</h4>
+                      <div className="space-y-3">
+                        {selectedFreelancer.projects.map((project) => (
+                          <Card key={project.id} className="bg-muted/10">
+                            <CardContent className="p-4">
+                              <div className="flex items-start justify-between mb-2">
+                                <h5 className="font-medium">{project.projectTitle}</h5>
+                                <Badge className={getStatusColor(project.paymentStatus)}>
+                                  {project.paymentStatus}
+                                </Badge>
+                              </div>
+                              <div className="grid grid-cols-2 gap-4 text-sm">
+                                <div>
+                                  <p className="text-muted-foreground">Total Value</p>
+                                  <p className="font-medium">${project.acceptedPrice.toLocaleString()}</p>
                                 </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      )}
+                                <div>
+                                  <p className="text-muted-foreground">Paid</p>
+                                  <p className="font-medium">${project.amountPaid.toLocaleString()}</p>
+                                </div>
+                              </div>
+                              <div className="mt-3">
+                                <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                                  <span>Progress</span>
+                                  <span>{Math.round((project.amountPaid / project.acceptedPrice) * 100)}%</span>
+                                </div>
+                                <Progress 
+                                  value={(project.amountPaid / project.acceptedPrice) * 100} 
+                                  className="h-2"
+                                />
+                              </div>
+                              <div className="mt-2 flex justify-between items-center">
+                                <p className="text-xs text-muted-foreground">
+                                  Created: {format(new Date(project.createdAt), 'MMM dd, yyyy')}
+                                </p>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => navigate(`/project/${project.projectId}`)}
+                                >
+                                  <Eye className="w-4 h-4 mr-1" />
+                                  View
+                                </Button>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
                     </div>
                   </CardContent>
                 </>
               ) : (
-                <CardContent className="flex items-center justify-center h-96">
-                  <div className="text-center">
-                    <DollarSign className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold mb-2">Select a project</h3>
-                    <p className="text-muted-foreground">
-                      Choose a project from the left to view financial details.
-                    </p>
-                  </div>
+                <CardContent className="flex flex-col items-center justify-center py-16">
+                  <Users className="w-16 h-16 text-muted-foreground mb-4" />
+                  <h3 className="text-xl font-semibold mb-2">Select a freelancer</h3>
+                  <p className="text-muted-foreground text-center">
+                    Choose a freelancer from the list to view their financial details and project history.
+                  </p>
                 </CardContent>
               )}
             </Card>
