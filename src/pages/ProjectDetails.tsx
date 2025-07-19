@@ -293,6 +293,32 @@ const ProjectDetails = () => {
     }
   };
 
+  const handleChangeDefaultStatus = async (status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED') => {
+    if (!project) return;
+
+    try {
+      const { error } = await supabase
+        .from('Project')
+        .update({ status: status, updatedAt: new Date().toISOString() })
+        .eq('id', project.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Status updated",
+        description: "Project status has been updated",
+      });
+
+      fetchProject();
+    } catch (error: any) {
+      toast({
+        title: "Error updating status",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'OPEN': return 'bg-green-500/10 text-green-500 border-green-500/20';
@@ -490,6 +516,33 @@ const ProjectDetails = () => {
                             </div>
                           </SelectItem>
                         ))}
+                      </SelectContent>
+                    </Select>
+                  )}
+                  {canChangeStatus && categoryStatuses.length === 0 && project.status !== 'OPEN' && (
+                    <Select value={project.status} onValueChange={handleChangeDefaultStatus}>
+                      <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Change status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="IN_PROGRESS">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-blue-500" />
+                            In Progress
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="COMPLETED">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-purple-500" />
+                            Completed
+                          </div>
+                        </SelectItem>
+                        <SelectItem value="CANCELLED">
+                          <div className="flex items-center gap-2">
+                            <div className="w-3 h-3 rounded-full bg-red-500" />
+                            Cancelled
+                          </div>
+                        </SelectItem>
                       </SelectContent>
                     </Select>
                   )}

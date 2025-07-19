@@ -60,7 +60,7 @@ const ProjectCategories: React.FC<ProjectCategoriesProps> = ({ managerId }) => {
         .order('createdAt', { ascending: false });
 
       if (error) throw error;
-      setCategories(data || []);
+      setCategories((data || []) as ProjectCategory[]);
     } catch (error: any) {
       toast({
         title: "Error loading categories",

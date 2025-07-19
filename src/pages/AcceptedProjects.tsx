@@ -28,7 +28,7 @@ interface AcceptedOffer {
   price: number;
   deliveryTime: number;
   description: string | null;
-  status: 'ACCEPTED' | 'PENDING';
+  status: 'ACCEPTED' | 'PENDING' | 'REJECTED';
   createdAt: string;
   Project: Project;
 }
@@ -90,7 +90,7 @@ const AcceptedProjects = () => {
         .order('createdAt', { ascending: false });
       
       if (error) throw error;
-      setAcceptedOffers(data || []);
+      setAcceptedOffers((data || []) as AcceptedOffer[]);
     } catch (error: any) {
       toast({
         title: "Error loading accepted projects",
