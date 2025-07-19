@@ -9,6 +9,7 @@ const corsHeaders = {
 interface CompleteInvitationRequest {
   token: string;
   userId: string;
+  name?: string;
 }
 
 serve(async (req: Request) => {
@@ -28,7 +29,7 @@ serve(async (req: Request) => {
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     // Parse request body
-    const { token, userId }: CompleteInvitationRequest = await req.json();
+    const { token, userId, name }: CompleteInvitationRequest = await req.json();
 
     if (!token || !userId) {
       return new Response('Missing token or userId', { 
@@ -83,7 +84,7 @@ serve(async (req: Request) => {
         id: userId,
         email: invitation.email,
         role: invitation.role,
-        name: invitation.email.split('@')[0], // Default name from email
+        name: name || invitation.email.split('@')[0], // Use provided name or default from email
       });
 
     if (profileError) {

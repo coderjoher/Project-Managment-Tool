@@ -159,22 +159,41 @@ const Auth = () => {
           throw profileError;
         }
 
-        // Mark invitation as used
-        // Try multiple approaches to update the invitation
-        let invitationError = null;
-        
-        // Approach 1: Try direct update (this might work after user profile is created)
-        const { error: directError } = await supabase
-          .from('invitations')
-          .update({ used_at: new Date().toISOString() })
-          .eq('token', invitation.token)
-          .eq('email', email); // Match by email as well for additional security
-        
-        if (directError) {
-          console.error('Direct update failed:', directError);
-          invitationError = directError;
-        } else {
-          console.log('Successfully marked invitation as used');
+        // Mark invitation as used using the complete-invitation function
+        try {
+          const { error: completeError } = await supabase.functions.invoke('complete-invitation', {
+            body: {
+              token: invitation.token,
+              userId: data.user.id,
+              name: name.trim()
+            }
+          });
+
+          if (completeError) {
+            console.error('Complete invitation function error:', completeError);
+            // Fallback: try direct update
+            const { error: directError } = await supabase
+              .from('invitations')
+              .update({ used_at: new Date().toISOString() })
+              .eq('token', invitation.token);
+            
+            if (directError) {
+              console.error('Direct update also failed:', directError);
+            }
+          } else {
+            console.log('Successfully marked invitation as used via function');
+          }
+        } catch (functionError) {
+          console.error('Function invocation failed:', functionError);
+          // Fallback: try direct update
+          const { error: directError } = await supabase
+            .from('invitations')
+            .update({ used_at: new Date().toISOString() })
+            .eq('token', invitation.token);
+          
+          if (directError) {
+            console.error('Direct update also failed:', directError);
+          }
         }
 
         toast({
@@ -323,7 +342,7 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      disabled={invitation?.email ? true : false}
+                      readOnly={invitation?.email ? true : false}
                     />
                   </div>
                   <div className="space-y-2">
