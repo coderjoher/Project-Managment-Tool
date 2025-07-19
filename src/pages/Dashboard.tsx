@@ -169,8 +169,8 @@ const Dashboard = () => {
                     <p className="text-sm text-muted-foreground">In Progress</p>
                     <p className="text-2xl font-bold">1</p>
                   </div>
-                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
-                    <Clock className="w-6 h-6 text-orange-600" />
+                      <div className="w-12 h-12 bg-status-in-progress/10 rounded-lg flex items-center justify-center">
+                        <Clock className="w-6 h-6 text-status-in-progress" />
                   </div>
                 </div>
               </CardContent>
@@ -183,8 +183,8 @@ const Dashboard = () => {
                     <p className="text-sm text-muted-foreground">Completed</p>
                     <p className="text-2xl font-bold">0</p>
                   </div>
-                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
-                    <CheckCircle className="w-6 h-6 text-green-600" />
+                      <div className="w-12 h-12 bg-status-completed/10 rounded-lg flex items-center justify-center">
+                        <CheckCircle className="w-6 h-6 text-status-completed" />
                   </div>
                 </div>
               </CardContent>
@@ -283,7 +283,7 @@ const Dashboard = () => {
                       <h4 className="font-medium">This is first project</h4>
                       <p className="text-sm text-muted-foreground">7/18/2025</p>
                     </div>
-                    <Badge className="bg-orange-500 text-white">IN PROGRESS</Badge>
+                    <Badge className="bg-status-in-progress text-white">IN PROGRESS</Badge>
                   </div>
                 </div>
               </CardContent>
@@ -300,14 +300,14 @@ const Dashboard = () => {
                       <h4 className="font-medium">$500</h4>
                       <p className="text-sm text-muted-foreground">First</p>
                     </div>
-                    <Badge className="bg-green-500 text-white">ACCEPTED</Badge>
+                    <Badge className="bg-status-completed text-white">ACCEPTED</Badge>
                   </div>
                   <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
                     <div>
                       <h4 className="font-medium">$880</h4>
                       <p className="text-sm text-muted-foreground">This is first project</p>
                     </div>
-                    <Badge className="bg-green-500 text-white">ACCEPTED</Badge>
+                    <Badge className="bg-status-completed text-white">ACCEPTED</Badge>
                   </div>
                 </div>
               </CardContent>

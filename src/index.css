@@ -2,79 +2,53 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @layer base {
   :root {
-    /* Light mode - Professional collaboration platform theme */
-    --background: 0 0% 100%;
-    --foreground: 240 10% 3.9%;
-
+    /* Design System Colors */
+    --background: 0 0% 100%; /* #FFFFFF */
+    --sidebar: 0 0% 98%; /* #FAFAFA */
+    --separator: 0 0% 88%; /* #E0E0E0 */
+    --hover: 0 0% 94%; /* #F0F0F0 */
+    --light-gray: 210 17% 96%; /* #F5F6F7 */
+    --zebra: 0 0% 98%; /* #FAFAFA */
+    --hover-row: 210 20% 98%; /* #F9FAFB */
+    
+    /* Status Colors */
+    --status-progress: 262 83% 58%; /* Purple */
+    --status-complete: 142 71% 45%; /* Green */
+    --status-pending: 45 93% 47%; /* Yellow */
+    --status-blocked: 0 84% 60%; /* Red */
+    
+    /* Base System Variables */
+    --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
-    --card-foreground: 240 10% 3.9%;
-
+    --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
-    --popover-foreground: 240 10% 3.9%;
-
-    /* Primary - Professional blue gradient */
-    --primary: 217 91% 60%;
-    --primary-foreground: 0 0% 98%;
-    --primary-variant: 221 83% 53%;
-
-    /* Secondary - Manager role accent */
-    --secondary: 142 71% 45%;
-    --secondary-foreground: 0 0% 98%;
-
-    /* Tertiary - Freelancer role accent */
-    --tertiary: 271 81% 56%;
-    --tertiary-foreground: 0 0% 98%;
-
-    --muted: 240 4.8% 95.9%;
-    --muted-foreground: 240 3.8% 46.1%;
-
-    --accent: 240 4.8% 95.9%;
-    --accent-foreground: 240 5.9% 10%;
-
+    --popover-foreground: 222.2 84% 4.9%;
+    --primary: 262 83% 58%; /* Purple primary */
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222.2 84% 4.9%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222.2 84% 4.9%;
     --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 0 0% 98%;
-
-    --border: 240 5.9% 90%;
-    --input: 240 5.9% 90%;
-    --ring: 217 91% 60%;
-
-    /* Success states */
+    --destructive-foreground: 210 40% 98%;
+    --border: 0 0% 88%; /* #E0E0E0 */
+    --input: 214.3 31.8% 91.4%;
+    --ring: 262 83% 58%;
     --success: 142 71% 45%;
     --success-foreground: 0 0% 98%;
-
-    /* Warning states */
-    --warning: 48 96% 53%;
+    --warning: 45 93% 47%;
     --warning-foreground: 240 10% 3.9%;
-
-    /* Beautiful gradients for light mode */
-    --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 60%), hsl(221, 83%, 53%));
-    --gradient-secondary: linear-gradient(135deg, hsl(142, 71%, 45%), hsl(158, 64%, 52%));
-    --gradient-tertiary: linear-gradient(135deg, hsl(271, 81%, 56%), hsl(288, 86%, 72%));
-    --gradient-hero: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(221, 83%, 53%) 50%, hsl(271, 81%, 56%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0, 0%, 100%) 0%, hsl(240, 4.8%, 95.9%) 100%);
-
-    /* Glass morphism for light mode */
-    --glass-bg: hsla(0, 0%, 100%, 0.8);
-    --glass-border: hsla(240, 5.9%, 90%, 0.3);
-
-    /* Shadows with color for light mode */
-    --shadow-primary: 0 10px 30px -10px hsla(217, 91%, 60%, 0.2);
-    --shadow-secondary: 0 10px 30px -10px hsla(142, 71%, 45%, 0.2);
-    --shadow-tertiary: 0 10px 30px -10px hsla(271, 81%, 56%, 0.2);
-    --shadow-elegant: 0 25px 50px -12px hsla(0, 0%, 0%, 0.1);
-
-    /* Smooth transitions */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.4s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-
-    --radius: 0.75rem;
-
+    --tertiary: 271 81% 56%;
+    --tertiary-foreground: 0 0% 98%;
+    --radius: 0.5rem;
+    
+    /* Sidebar Variables */
     --sidebar-background: 0 0% 98%;
     --sidebar-foreground: 240 5.3% 26.1%;
     --sidebar-primary: 240 5.9% 10%;
@@ -82,7 +56,7 @@ All colors MUST be HSL.
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
     --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-ring: 262 83% 58%;
   }
 
   .dark {
@@ -162,8 +136,64 @@ All colors MUST be HSL.
   * {
     @apply border-border;
   }
-
+  
   body {
     @apply bg-background text-foreground;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+  }
+  
+  h1 {
+    @apply text-xl font-semibold;
+  }
+  
+  h2 {
+    @apply text-base font-medium;
+  }
+  
+  .task-name {
+    @apply text-sm font-normal;
+  }
+  
+  .label-tag {
+    @apply text-xs font-medium;
+  }
+}
+
+@layer utilities {
+  .sidebar-bg {
+    background-color: hsl(var(--sidebar));
+  }
+  
+  .separator {
+    border-color: hsl(var(--separator));
+  }
+  
+  .hover-state:hover {
+    background-color: hsl(var(--hover));
+  }
+  
+  .zebra-row:nth-child(even) {
+    background-color: hsl(var(--zebra));
+  }
+  
+  .hover-row:hover {
+    background-color: hsl(var(--hover-row));
+  }
+  
+  .status-progress {
+    background-color: hsl(var(--status-progress));
+  }
+  
+  .status-complete {
+    background-color: hsl(var(--status-complete));
+  }
+  
+  .status-pending {
+    background-color: hsl(var(--status-pending));
+  }
+  
+  .status-blocked {
+    background-color: hsl(var(--status-blocked));
   }
 }

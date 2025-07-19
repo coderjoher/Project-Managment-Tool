@@ -273,10 +273,10 @@ const Projects = () => {
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'OPEN': return 'bg-green-500/10 text-green-500 border-green-500/20';
-      case 'IN_PROGRESS': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
-      case 'COMPLETED': return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
-      case 'CANCELLED': return 'bg-red-500/10 text-red-500 border-red-500/20';
+      case 'OPEN': return 'bg-status-open/10 text-status-open border-status-open/20';
+      case 'IN_PROGRESS': return 'bg-status-in-progress/10 text-status-in-progress border-status-in-progress/20';
+      case 'COMPLETED': return 'bg-status-completed/10 text-status-completed border-status-completed/20';
+      case 'CANCELLED': return 'bg-status-cancelled/10 text-status-cancelled border-status-cancelled/20';
       default: return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
     }
   };
