@@ -93,25 +93,28 @@ export type Database = {
       }
       ChatMessage: {
         Row: {
-          chatId: string
+          chatId: string | null
           content: string
           createdAt: string
+          directChatId: string | null
           id: string
           platform: Database["public"]["Enums"]["MessagePlatform"]
           senderId: string
         }
         Insert: {
-          chatId: string
+          chatId?: string | null
           content: string
           createdAt?: string
+          directChatId?: string | null
           id: string
           platform?: Database["public"]["Enums"]["MessagePlatform"]
           senderId: string
         }
         Update: {
-          chatId?: string
+          chatId?: string | null
           content?: string
           createdAt?: string
+          directChatId?: string | null
           id?: string
           platform?: Database["public"]["Enums"]["MessagePlatform"]
           senderId?: string
@@ -122,6 +125,13 @@ export type Database = {
             columns: ["chatId"]
             isOneToOne: false
             referencedRelation: "Chat"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ChatMessage_directChatId_fkey"
+            columns: ["directChatId"]
+            isOneToOne: false
+            referencedRelation: "DirectChat"
             referencedColumns: ["id"]
           },
           {
@@ -179,6 +189,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      DirectChat: {
+        Row: {
+          createdAt: string
+          id: string
+          participant1Id: string
+          participant2Id: string
+          updatedAt: string
+        }
+        Insert: {
+          createdAt?: string
+          id?: string
+          participant1Id: string
+          participant2Id: string
+          updatedAt?: string
+        }
+        Update: {
+          createdAt?: string
+          id?: string
+          participant1Id?: string
+          participant2Id?: string
+          updatedAt?: string
+        }
+        Relationships: []
       }
       Financial: {
         Row: {

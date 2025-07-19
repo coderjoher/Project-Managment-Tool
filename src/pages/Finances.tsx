@@ -8,37 +8,32 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, DollarSign, TrendingUp, Upload, FileText, Plus, CreditCard } from 'lucide-react';
+import { ArrowLeft, DollarSign, TrendingUp, Send, Gift, Plus, ArrowUp, Users, Eye } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 
-interface Financial {
+interface FreelancerFinancial {
+  freelancerId: string;
+  freelancerName: string;
+  freelancerEmail: string;
+  freelancerAvatar?: string;
+  totalEarned: number;
+  totalPending: number;
+  projectCount: number;
+  lastPayment?: string;
+  projects: ProjectFinancial[];
+}
+
+interface ProjectFinancial {
   id: string;
   projectId: string;
-  estimatedBudget: number | null;
+  projectTitle: string;
   acceptedPrice: number;
   amountPaid: number;
   paymentStatus: 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE';
   createdAt: string;
-  updatedAt: string;
-  Project: {
-    title: string;
-    managerId: string;
-  };
-}
-
-interface FinancialUpdate {
-  id: string;
-  financialId: string;
-  amount: number | null;
-  description: string;
-  createdAt: string;
-  User: {
-    name: string | null;
-    email: string;
-  };
 }
 
 interface UserProfile {
@@ -49,15 +44,22 @@ const Finances = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [financials, setFinancials] = useState<Financial[]>([]);
-  const [selectedFinancial, setSelectedFinancial] = useState<Financial | null>(null);
-  const [updates, setUpdates] = useState<FinancialUpdate[]>([]);
+  const [freelancers, setFreelancers] = useState<FreelancerFinancial[]>([]);
+  const [selectedFreelancer, setSelectedFreelancer] = useState<FreelancerFinancial | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [isUpdateDialogOpen, setIsUpdateDialogOpen] = useState(false);
-  const [updateForm, setUpdateForm] = useState({
+  const [isGiftDialogOpen, setIsGiftDialogOpen] = useState(false);
+  const [giftForm, setGiftForm] = useState({
     amount: '',
-    description: ''
+    description: '',
+    type: 'bonus' as 'bonus' | 'gift'
+  });
+
+  const [totalStats, setTotalStats] = useState({
+    totalPaid: 0,
+    totalPending: 0,
+    activeFreelancers: 0,
+    completedProjects: 0
   });
 
   useEffect(() => {
@@ -66,14 +68,8 @@ const Finances = () => {
       return;
     }
     fetchUserProfile();
-    fetchFinancials();
+    fetchFreelancersFinancials();
   }, [user, navigate]);
-
-  useEffect(() => {
-    if (selectedFinancial) {
-      fetchUpdates(selectedFinancial.id);
-    }
-  }, [selectedFinancial]);
 
   const fetchUserProfile = async () => {
     if (!user) return;
@@ -96,7 +92,7 @@ const Finances = () => {
     }
   };
 
-  const fetchFinancials = async () => {
+  const fetchFreelancersFinancials = async () => {
     if (!user) return;
     
     try {
@@ -107,52 +103,104 @@ const Finances = () => {
         .eq('id', user.id)
         .single();
 
-      let financials: Financial[] = [];
-
-      if (profile?.role === 'MANAGER') {
-        // For managers, get financials for their projects
-        const { data, error } = await supabase
-          .from('Financial')
-          .select(`
-            *,
-            Project!inner(title, managerId)
-          `)
-          .eq('Project.managerId', user.id)
-          .order('createdAt', { ascending: false });
-        
-        if (error) throw error;
-        financials = data || [];
-      } else {
-        // For freelancers, get financials for projects they have accepted offers on
-        const { data: acceptedOffers, error: offersError } = await supabase
-          .from('Offer')
-          .select('projectId')
-          .eq('freelancerId', user.id)
-          .eq('status', 'ACCEPTED');
-        
-        if (offersError) throw offersError;
-        
-        if (acceptedOffers && acceptedOffers.length > 0) {
-          const projectIds = acceptedOffers.map(offer => offer.projectId);
-          
-          const { data, error } = await supabase
-            .from('Financial')
-            .select(`
-              *,
-              Project!inner(title, managerId)
-            `)
-            .in('projectId', projectIds)
-            .order('createdAt', { ascending: false });
-          
-          if (error) throw error;
-          financials = data || [];
-        }
+      if (profile?.role !== 'MANAGER') {
+        setLoading(false);
+        return;
       }
+
+      // Get all projects managed by this user with their financials and freelancers
+      const { data: projectsData, error: projectsError } = await supabase
+        .from('Project')
+        .select(`
+          id,
+          title,
+          managerId,
+          Financial (
+            id,
+            projectId,
+            acceptedPrice,
+            amountPaid,
+            paymentStatus,
+            createdAt
+          ),
+          Offer!inner (
+            freelancerId,
+            status
+          )
+        `)
+        .eq('managerId', user.id)
+        .eq('Offer.status', 'ACCEPTED');
+
+      if (projectsError) throw projectsError;
+
+      // Get freelancer details
+      const freelancerIds = [...new Set(projectsData?.flatMap(p => p.Offer.map(o => o.freelancerId)) || [])];
       
-      setFinancials(financials);
+      const { data: freelancersData, error: freelancersError } = await supabase
+        .from('User')
+        .select('id, name, email, avatar')
+        .in('id', freelancerIds);
+
+      if (freelancersError) throw freelancersError;
+
+      // Process data to group by freelancer
+      const freelancerMap = new Map<string, FreelancerFinancial>();
       
-      if (financials.length > 0) {
-        setSelectedFinancial(financials[0]);
+      projectsData?.forEach(project => {
+        project.Offer.forEach(offer => {
+          if (offer.status === 'ACCEPTED') {
+            const freelancer = freelancersData?.find(f => f.id === offer.freelancerId);
+            if (!freelancer) return;
+
+            const financial = project.Financial[0];
+            if (!financial) return;
+
+            const key = offer.freelancerId;
+            
+            if (!freelancerMap.has(key)) {
+              freelancerMap.set(key, {
+                freelancerId: offer.freelancerId,
+                freelancerName: freelancer.name || 'Unknown',
+                freelancerEmail: freelancer.email,
+                freelancerAvatar: freelancer.avatar,
+                totalEarned: 0,
+                totalPending: 0,
+                projectCount: 0,
+                projects: []
+              });
+            }
+
+            const freelancerData = freelancerMap.get(key)!;
+            freelancerData.totalEarned += financial.amountPaid;
+            freelancerData.totalPending += (financial.acceptedPrice - financial.amountPaid);
+            freelancerData.projectCount++;
+            freelancerData.projects.push({
+              id: financial.id,
+              projectId: project.id,
+              projectTitle: project.title,
+              acceptedPrice: financial.acceptedPrice,
+              amountPaid: financial.amountPaid,
+              paymentStatus: financial.paymentStatus,
+              createdAt: financial.createdAt
+            });
+          }
+        });
+      });
+
+      const freelancersList = Array.from(freelancerMap.values());
+      setFreelancers(freelancersList);
+
+      // Calculate total stats
+      const stats = {
+        totalPaid: freelancersList.reduce((sum, f) => sum + f.totalEarned, 0),
+        totalPending: freelancersList.reduce((sum, f) => sum + f.totalPending, 0),
+        activeFreelancers: freelancersList.length,
+        completedProjects: freelancersList.reduce((sum, f) => sum + f.projects.filter(p => p.paymentStatus === 'PAID').length, 0)
+      };
+      setTotalStats(stats);
+
+      if (freelancersList.length > 0) {
+        setSelectedFreelancer(freelancersList[0]);
       }
     } catch (error: any) {
       toast({
@@ -165,40 +213,18 @@ const Finances = () => {
     }
   };
 
-  const fetchUpdates = async (financialId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from('FinancialUpdate')
-        .select(`
-          *,
-          User(name, email)
-        `)
-        .eq('financialId', financialId)
-        .order('createdAt', { ascending: false });
-      
-      if (error) throw error;
-      setUpdates(data || []);
-    } catch (error: any) {
-      toast({
-        title: "Error loading updates",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleAddUpdate = async (e: React.FormEvent) => {
+  const handleGiveGift = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selectedFinancial || !user || userProfile?.role !== 'MANAGER') return;
+    if (!selectedFreelancer || !user) return;
 
     try {
       const updateId = crypto.randomUUID();
       
       const updateData = {
         id: updateId,
-        financialId: selectedFinancial.id,
-        amount: updateForm.amount ? parseFloat(updateForm.amount) : null,
-        description: updateForm.description,
+        financialId: selectedFreelancer.projects[0]?.id || '',
+        amount: parseFloat(giftForm.amount),
+        description: `${giftForm.type === 'gift' ? '🎁 Gift' : '💰 Bonus'}: ${giftForm.description}`,
         updatedById: user.id
       };
 
@@ -208,33 +234,17 @@ const Finances = () => {
 
       if (error) throw error;
 
-      // Update the financial record if amount was provided
-      if (updateForm.amount) {
-        const newAmountPaid = selectedFinancial.amountPaid + parseFloat(updateForm.amount);
-        const newStatus = newAmountPaid >= selectedFinancial.acceptedPrice ? 'PAID' : 'PARTIAL';
-
-        await supabase
-          .from('Financial')
-          .update({ 
-            amountPaid: newAmountPaid,
-            paymentStatus: newStatus,
-            updatedAt: new Date().toISOString()
-          })
-          .eq('id', selectedFinancial.id);
-      }
-
       toast({
-        title: "Update added successfully",
-        description: "Financial record has been updated",
+        title: `${giftForm.type === 'gift' ? 'Gift' : 'Bonus'} sent successfully!`,
+        description: `Sent $${giftForm.amount} to ${selectedFreelancer.freelancerName}`,
       });
 
-      setIsUpdateDialogOpen(false);
-      setUpdateForm({ amount: '', description: '' });
-      fetchFinancials();
-      fetchUpdates(selectedFinancial.id);
+      setIsGiftDialogOpen(false);
+      setGiftForm({ amount: '', description: '', type: 'bonus' });
+      fetchFreelancersFinancials();
     } catch (error: any) {
       toast({
-        title: "Error adding update",
+        title: "Error sending gift",
         description: error.message,
         variant: "destructive",
       });
@@ -253,7 +263,7 @@ const Finances = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-purple-950 flex items-center justify-center">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
           <span className="text-lg">Loading finances...</span>
@@ -264,252 +274,321 @@ const Finances = () => {
 
   const isManager = userProfile?.role === 'MANAGER';
 
-  return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+  if (!isManager) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-purple-950 flex items-center justify-center">
+        <Card className="max-w-md w-full mx-4 bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-white/20 dark:border-slate-700/50">
+          <CardContent className="flex flex-col items-center justify-center py-16">
+            <DollarSign className="w-16 h-16 text-slate-400 mb-4" />
+            <h3 className="text-xl font-semibold mb-2">Manager Access Required</h3>
+            <p className="text-slate-600 dark:text-slate-400 text-center mb-6">
+              This page is only available for managers to track freelancer payments.
+            </p>
+            <Button onClick={() => navigate('/dashboard')}>
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back to Dashboard
             </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-purple-950">
+      <div className="max-w-7xl mx-auto px-6 py-8">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-8">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" onClick={() => navigate('/dashboard')} className="hover:bg-white/80 dark:hover:bg-slate-800/80">
+              <ArrowLeft className="w-4 h-4 mr-2" />
+              Back
+            </Button>
             <div>
-              <h1 className="text-3xl font-bold">Finances</h1>
-              <p className="text-muted-foreground">
-                {isManager ? 'Track payments and budgets' : 'View earnings and invoices'}
-              </p>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-purple-700 dark:from-white dark:to-purple-300 bg-clip-text text-transparent">
+                Financial Dashboard
+              </h1>
+              <p className="text-slate-600 dark:text-slate-400">Welcome back, track your team's earnings</p>
             </div>
           </div>
         </div>
 
-        {financials.length === 0 ? (
-          <Card className="bg-gradient-card border-white/10">
+        {freelancers.length === 0 ? (
+          <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-white/20 dark:border-slate-700/50 shadow-xl">
             <CardContent className="flex flex-col items-center justify-center py-16">
-              <DollarSign className="w-16 h-16 text-muted-foreground mb-4" />
-              <h3 className="text-xl font-semibold mb-2">No financial records found</h3>
-              <p className="text-muted-foreground text-center mb-6">
-                {isManager 
-                  ? "Financial records will appear here when you accept offers from freelancers."
-                  : "Your earnings and payment information will appear here when projects are active."
-                }
+              <DollarSign className="w-16 h-16 text-slate-400 mb-4" />
+              <h3 className="text-xl font-semibold mb-2">No freelancers found</h3>
+              <p className="text-slate-600 dark:text-slate-400 text-center mb-6">
+                Freelancer financial data will appear here when you have active projects with accepted offers.
               </p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Financial Records List */}
-            <Card className="bg-gradient-card border-white/10">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <FileText className="w-5 h-5" />
-                  Projects
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {financials.map((financial) => (
-                    <div
-                      key={financial.id}
-                      className={`p-3 rounded-lg cursor-pointer transition-colors ${
-                        selectedFinancial?.id === financial.id 
-                          ? 'bg-primary/10 border border-primary/20' 
-                          : 'hover:bg-muted/20'
-                      }`}
-                      onClick={() => setSelectedFinancial(financial)}
-                    >
-                      <div className="flex items-start justify-between">
-                        <h4 className="font-medium text-sm line-clamp-1">
-                          {financial.Project.title}
-                        </h4>
-                        <Badge className={getStatusColor(financial.paymentStatus)}>
-                          {financial.paymentStatus}
-                        </Badge>
-                      </div>
-                      <div className="mt-2">
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>Paid: ${financial.amountPaid}</span>
-                          <span>Total: ${financial.acceptedPrice}</span>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Sidebar - Freelancer Card & Summary */}
+            <div className="lg:col-span-4 space-y-6">
+              {/* Freelancer Card */}
+              <Card className="bg-gradient-to-br from-purple-600 to-purple-800 text-white shadow-2xl overflow-hidden">
+                <CardContent className="p-6">
+                  {selectedFreelancer && (
+                    <>
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-12 h-12 ring-2 ring-white/30">
+                            <AvatarImage src={selectedFreelancer.freelancerAvatar} />
+                            <AvatarFallback className="bg-white/20 text-white">
+                              {selectedFreelancer.freelancerName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h3 className="font-semibold text-white">{selectedFreelancer.freelancerName}</h3>
+                            <p className="text-purple-100 text-sm">{selectedFreelancer.freelancerEmail}</p>
+                          </div>
                         </div>
-                        <Progress 
-                          value={(financial.amountPaid / financial.acceptedPrice) * 100} 
-                          className="mt-1 h-2"
-                        />
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+                      
+                      <div className="bg-white/10 rounded-lg p-4 mb-4">
+                        <div className="text-center">
+                          <p className="text-purple-100 text-sm mb-1">Total Balance</p>
+                          <p className="text-3xl font-bold text-white">
+                            ${(selectedFreelancer.totalEarned + selectedFreelancer.totalPending).toLocaleString()}
+                          </p>
+                          <p className="text-purple-200 text-sm">USD</p>
+                        </div>
+                      </div>
 
-            {/* Financial Details */}
-            <Card className="lg:col-span-2 bg-gradient-card border-white/10">
-              {selectedFinancial ? (
-                <>
-                  <CardHeader className="border-b border-white/10">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <CardTitle>{selectedFinancial.Project.title}</CardTitle>
-                        <CardDescription>
-                          Financial overview and payment tracking
-                        </CardDescription>
-                      </div>
-                      {isManager && (
-                        <Dialog open={isUpdateDialogOpen} onOpenChange={setIsUpdateDialogOpen}>
+                      <div className="flex gap-2">
+                        <Dialog open={isGiftDialogOpen} onOpenChange={setIsGiftDialogOpen}>
                           <DialogTrigger asChild>
-                            <Button>
-                              <Plus className="w-4 h-4 mr-2" />
-                              Add Update
+                            <Button variant="secondary" size="sm" className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0">
+                              <Send className="w-4 h-4 mr-1" />
+                              Send
                             </Button>
                           </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Add Payment Update</DialogTitle>
-                              <DialogDescription>
-                                Record a payment or add a note about the financial status.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <form onSubmit={handleAddUpdate}>
-                              <div className="grid gap-4 py-4">
-                                <div className="grid gap-2">
-                                  <Label htmlFor="amount">Payment Amount (Optional)</Label>
-                                  <Input
-                                    id="amount"
-                                    type="number"
-                                    value={updateForm.amount}
-                                    onChange={(e) => setUpdateForm(prev => ({ ...prev, amount: e.target.value }))}
-                                    placeholder="0.00"
-                                    min="0"
-                                    step="0.01"
-                                  />
-                                </div>
-                                <div className="grid gap-2">
-                                  <Label htmlFor="description">Description *</Label>
-                                  <Textarea
-                                    id="description"
-                                    value={updateForm.description}
-                                    onChange={(e) => setUpdateForm(prev => ({ ...prev, description: e.target.value }))}
-                                    placeholder="Describe the payment or update"
-                                    required
-                                  />
-                                </div>
-                              </div>
-                              <DialogFooter>
-                                <Button type="button" variant="outline" onClick={() => setIsUpdateDialogOpen(false)}>
-                                  Cancel
-                                </Button>
-                                <Button type="submit">Add Update</Button>
-                              </DialogFooter>
-                            </form>
-                          </DialogContent>
                         </Dialog>
-                      )}
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Summary Cards */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Card className="bg-muted/10">
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="w-5 h-5 text-green-500" />
-                            <div>
-                              <p className="text-sm text-muted-foreground">Total Value</p>
-                              <p className="text-xl font-bold">${selectedFinancial.acceptedPrice.toLocaleString()}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card className="bg-muted/10">
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2">
-                            <CreditCard className="w-5 h-5 text-blue-500" />
-                            <div>
-                              <p className="text-sm text-muted-foreground">Paid</p>
-                              <p className="text-xl font-bold">${selectedFinancial.amountPaid.toLocaleString()}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card className="bg-muted/10">
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-orange-500" />
-                            <div>
-                              <p className="text-sm text-muted-foreground">Remaining</p>
-                              <p className="text-xl font-bold">
-                                ${(selectedFinancial.acceptedPrice - selectedFinancial.amountPaid).toLocaleString()}
-                              </p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
-
-                    {/* Progress Bar */}
-                    <div>
-                      <div className="flex justify-between text-sm mb-2">
-                        <span>Payment Progress</span>
-                        <span>{Math.round((selectedFinancial.amountPaid / selectedFinancial.acceptedPrice) * 100)}%</span>
+                        <Button variant="secondary" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-0">
+                          Request
+                        </Button>
+                        <Button variant="secondary" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-0">
+                          Top Up
+                        </Button>
                       </div>
-                      <Progress 
-                        value={(selectedFinancial.amountPaid / selectedFinancial.acceptedPrice) * 100} 
-                        className="h-3"
-                      />
-                    </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
 
-                    {/* Payment Updates */}
-                    <div>
-                      <h3 className="font-semibold mb-4">Payment History</h3>
-                      {updates.length === 0 ? (
-                        <div className="text-center py-8">
-                          <FileText className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-                          <p className="text-muted-foreground">No payment updates yet</p>
-                        </div>
-                      ) : (
-                        <div className="space-y-4">
-                          {updates.map((update) => (
-                            <Card key={update.id} className="bg-muted/10">
-                              <CardContent className="p-4">
-                                <div className="flex items-start justify-between">
-                                  <div className="flex-1">
-                                    <p className="text-sm">{update.description}</p>
-                                    <div className="flex items-center gap-2 mt-1">
-                                      <span className="text-xs text-muted-foreground">
-                                        By {update.User.name || update.User.email}
-                                      </span>
-                                      <span className="text-xs text-muted-foreground">
-                                        {format(new Date(update.createdAt), 'MMM dd, yyyy HH:mm')}
-                                      </span>
-                                    </div>
-                                  </div>
-                                  {update.amount && (
-                                    <Badge variant="outline" className="text-green-600">
-                                      +${update.amount.toLocaleString()}
-                                    </Badge>
-                                  )}
-                                </div>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
-                      )}
+              {/* Quick Stats */}
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-white/20 dark:border-slate-700/50">
+                  <CardContent className="p-4">
+                    <div className="text-center">
+                      <TrendingUp className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-green-600">${totalStats.totalPaid.toLocaleString()}</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">Total Paid</p>
                     </div>
                   </CardContent>
-                </>
-              ) : (
-                <CardContent className="flex items-center justify-center h-96">
-                  <div className="text-center">
-                    <DollarSign className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
-                    <h3 className="text-xl font-semibold mb-2">Select a project</h3>
-                    <p className="text-muted-foreground">
-                      Choose a project from the left to view financial details.
-                    </p>
+                </Card>
+                <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-white/20 dark:border-slate-700/50">
+                  <CardContent className="p-4">
+                    <div className="text-center">
+                      <DollarSign className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-blue-600">${totalStats.totalPending.toLocaleString()}</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">Pending</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Contacts */}
+              <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-white/20 dark:border-slate-700/50">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">Recent Contacts</CardTitle>
+                    <Button variant="ghost" size="sm" className="text-xs text-purple-600 hover:text-purple-700">
+                      All Contacts
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-2">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 text-slate-400 hover:border-purple-500 hover:text-purple-500 cursor-pointer transition-colors">
+                      <Plus className="w-4 h-4" />
+                    </div>
+                    {freelancers.slice(0, 6).map((freelancer) => (
+                      <div
+                        key={freelancer.freelancerId}
+                        className={`cursor-pointer transition-all duration-200 ${
+                          selectedFreelancer?.freelancerId === freelancer.freelancerId 
+                            ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' 
+                            : 'hover:scale-110'
+                        }`}
+                        onClick={() => setSelectedFreelancer(freelancer)}
+                      >
+                        <Avatar className="w-12 h-12">
+                          <AvatarImage src={freelancer.freelancerAvatar} />
+                          <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-xs">
+                            {freelancer.freelancerName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                    ))}
                   </div>
                 </CardContent>
-              )}
-            </Card>
+              </Card>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="lg:col-span-8">
+              <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-white/20 dark:border-slate-700/50 shadow-xl">
+                {selectedFreelancer ? (
+                  <>
+                    <CardHeader className="border-b border-slate-200/50 dark:border-slate-700/50 pb-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-xl text-slate-800 dark:text-white mb-1">
+                            Transactions History
+                          </CardTitle>
+                          <CardDescription className="text-slate-600 dark:text-slate-400">
+                            Recent financial activities and project payments
+                          </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" className="bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700">
+                            Select Date Range
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <ArrowUp className="w-3 h-3 mr-1" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
+                        {selectedFreelancer.projects.map((project, index) => (
+                          <div key={project.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 dark:bg-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 transition-colors border border-slate-200/50 dark:border-slate-700/50">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                                {project.projectTitle.substring(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-slate-800 dark:text-white">{project.projectTitle}</h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                  {project.paymentStatus === 'PAID' ? 'Payment of Project' : 'Received: Your Payment'}
+                                </p>
+                                <p className="text-xs text-slate-500 dark:text-slate-500">
+                                  {format(new Date(project.createdAt), 'EEE. dd MMMM yyyy')} • {format(new Date(project.createdAt), 'h:mm a')}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className={`font-semibold ${
+                                project.paymentStatus === 'PAID' 
+                                  ? 'text-green-600' 
+                                  : 'text-blue-600'
+                              }`}>
+                                USD {project.amountPaid > 0 ? project.amountPaid.toLocaleString() : project.acceptedPrice.toLocaleString()}
+                              </p>
+                              <div className="flex items-center gap-2 justify-end mt-1">
+                                <Badge className={`text-xs ${getStatusColor(project.paymentStatus)}`}>
+                                  {project.paymentStatus}
+                                </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-6 w-6 p-0"
+                                  onClick={() => navigate(`/project/${project.projectId}`)}
+                                >
+                                  <Eye className="w-3 h-3" />
+                                </Button>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                        
+                        {selectedFreelancer.projects.length === 0 && (
+                          <div className="text-center py-8">
+                            <DollarSign className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                            <p className="text-slate-600 dark:text-slate-400">No transactions yet</p>
+                          </div>
+                        )}
+                      </div>
+                    </CardContent>
+                  </>
+                ) : (
+                  <CardContent className="flex flex-col items-center justify-center py-16">
+                    <Users className="w-16 h-16 text-slate-400 mb-4" />
+                    <h3 className="text-xl font-semibold mb-2 text-slate-800 dark:text-white">Select a freelancer</h3>
+                    <p className="text-slate-600 dark:text-slate-400 text-center">
+                      Choose a freelancer from the list to view their financial details and project history.
+                    </p>
+                  </CardContent>
+                )}
+              </Card>
+            </div>
           </div>
         )}
+
+        {/* Send Gift Dialog */}
+        <Dialog open={isGiftDialogOpen} onOpenChange={setIsGiftDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <form onSubmit={handleGiveGift}>
+              <DialogHeader>
+                <DialogTitle>Send Gift or Bonus</DialogTitle>
+                <DialogDescription>
+                  Send a gift or bonus to {selectedFreelancer?.freelancerName}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="type" className="text-right">
+                    Type
+                  </Label>
+                  <select
+                    id="type"
+                    className="col-span-3 px-3 py-2 border rounded-md bg-background"
+                    value={giftForm.type}
+                    onChange={(e) => setGiftForm(prev => ({ ...prev, type: e.target.value as 'bonus' | 'gift' }))}
+                  >
+                    <option value="bonus">Bonus</option>
+                    <option value="gift">Gift</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="amount" className="text-right">
+                    Amount
+                  </Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    placeholder="0.00"
+                    className="col-span-3"
+                    value={giftForm.amount}
+                    onChange={(e) => setGiftForm(prev => ({ ...prev, amount: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="description" className="text-right">
+                    Description
+                  </Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Enter a message..."
+                    className="col-span-3"
+                    value={giftForm.description}
+                    onChange={(e) => setGiftForm(prev => ({ ...prev, description: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit">Send {giftForm.type}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
