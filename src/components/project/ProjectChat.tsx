@@ -50,6 +50,32 @@ export const ProjectChat: React.FC<ProjectChatProps> = ({ projectId, projectTitl
     }
   }, [projectId, user]);
 
+  // Real-time subscription for new messages
+  useEffect(() => {
+    if (!chatId) return;
+
+    const channel = supabase
+      .channel('chat-messages')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'ChatMessage',
+          filter: `chatId=eq.${chatId}`
+        },
+        (payload) => {
+          const newMessage = payload.new as ChatMessage;
+          setMessages(prev => [...prev, newMessage]);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [chatId]);
+
   const initializeProjectChat = async () => {
     try {
       // Get project users (manager + accepted freelancers)
