@@ -87,7 +87,6 @@ const SuperAdmin = () => {
         .from('invitations')
         .select('*')
         .eq('role', 'MANAGER')
-        .is('email', null)
         .order('created_at', { ascending: false });
 
       if (error) throw error;

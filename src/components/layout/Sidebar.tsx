@@ -42,7 +42,7 @@ const Sidebar: React.FC<SidebarProps> = ({ userProfile }) => {
 
   const getNavItems = () => {
     const baseItems = [
-      { path: '/dashboard', label: 'Overview', icon: BarChart3 },
+      { path: '/dashboard', label: 'Dashboard', icon: BarChart3 },
       { path: '/projects', label: userProfile?.role === 'FREELANCER' ? 'Offer Project' : 'Projects', icon: Briefcase },
       { path: '/messages', label: 'Messages', icon: MessageSquare },
       { path: '/finances', label: 'Financials', icon: DollarSign },
@@ -52,13 +52,14 @@ const Sidebar: React.FC<SidebarProps> = ({ userProfile }) => {
     if (userProfile?.role === 'FREELANCER') {
       // Add Accepted Projects for freelancers at index 2 (after Projects)
       baseItems.splice(2, 0, { path: '/accepted-projects', label: 'Accepted Projects', icon: CheckCircle });
-    } else if (userProfile?.role === 'MANAGER') {
+    } else if (userProfile?.role === 'MANAGER' || userProfile?.role === 'SUPERADMIN') {
       // Add My Offers for managers at index 2 (after Projects)
       baseItems.splice(2, 0, { path: '/offers', label: 'My Offers', icon: FileText });
       // Add Categories for managers at index 3
       baseItems.splice(3, 0, { path: '/categories', label: 'Categories', icon: Tag });
       // Add Freelancers for managers at index 4
       baseItems.splice(4, 0, { path: '/freelancers', label: 'Freelancers', icon: Users });
+      baseItems.splice(5, 0, { path: '/superadmin', label: 'Managers', icon: FileText });
     }
     
     return baseItems;
