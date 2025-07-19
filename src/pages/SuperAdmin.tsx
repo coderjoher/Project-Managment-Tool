@@ -13,15 +13,16 @@ interface UserProfile {
   id: string;
   name: string | null;
   email: string;
-  role: 'MANAGER' | 'FREELANCER' | 'SUPERADMIN';
+  role: 'MANAGER' | 'FREELANCER';
+  is_superadmin: boolean;
 }
 
 interface ManagerInvite {
   id: string;
   token: string;
-  createdAt: string;
-  expiresAt: string;
-  usedAt: string | null;
+  created_at: string;
+  expires_at: string;
+  used_at: string | null;
 }
 
 const SuperAdmin = () => {
@@ -56,7 +57,7 @@ const SuperAdmin = () => {
       setUserProfile(data);
 
       // Check if user is a superadmin
-      if (data.role !== 'SUPERADMIN') {
+      if (!data.is_superadmin) {
         toast({
           title: "Access Denied",
           description: "Only superadmins can access this page",
@@ -112,6 +113,7 @@ const SuperAdmin = () => {
         .insert({
           token,
           role: 'MANAGER',
+          email: '', // Allow empty email for general signup links
           invited_by: user?.id,
           expires_at: expiresAt.toISOString(),
         });
@@ -185,7 +187,7 @@ const SuperAdmin = () => {
     );
   }
 
-  if (!userProfile || userProfile.role !== 'SUPERADMIN') {
+  if (!userProfile || !userProfile.is_superadmin) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
@@ -261,7 +263,7 @@ const SuperAdmin = () => {
                       <div>
                         <div className="flex items-center gap-2 mb-1">
                           <Badge variant="secondary">Manager</Badge>
-                          {invite.usedAt ? (
+                          {invite.used_at ? (
                             <Badge variant="default">Used</Badge>
                           ) : (
                             <Badge variant="outline" className="text-green-500 border-green-500">
@@ -270,11 +272,11 @@ const SuperAdmin = () => {
                           )}
                         </div>
                         <p className="text-sm text-muted-foreground">
-                          Expires: {new Date(invite.expiresAt).toLocaleDateString()}
+                          Expires: {new Date(invite.expires_at).toLocaleDateString()}
                         </p>
                       </div>
                       <div className="flex items-center gap-2">
-                        {!invite.usedAt && (
+                        {!invite.used_at && (
                           <Button
                             variant="outline"
                             size="sm"

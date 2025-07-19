@@ -36,14 +36,11 @@ const Auth = () => {
     }
   }, [user, navigate]);
 
-  // Check for invite token (superadmin bypass)
+  // Check for invite token
   useEffect(() => {
     const inviteToken = searchParams.get('token');
     if (inviteToken) {
       validateInviteToken(inviteToken);
-    } else {
-    if (token) {
-      validateInvitation(token);
     }
   }, [searchParams]);
 
@@ -66,49 +63,16 @@ const Auth = () => {
         });
         navigate('/', { replace: true });
       } else {
-        setRole(invite.role);
+        setRole(invite.role as 'MANAGER' | 'FREELANCER');
         setInvitation({
           email: '',
-          role: invite.role,
+          role: invite.role as 'MANAGER' | 'FREELANCER',
           token: invite.token,
         });
       }
     } catch (error: any) {
       toast({
         title: "Error loading invitation",
-        description: error.message,
-        variant: "destructive",
-      });
-    } finally {
-      setInvitationLoading(false);
-    }
-  };
-    setInvitationLoading(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('validate-invitation', {
-        body: { token }
-      });
-
-      if (error) throw error;
-
-      if (data.valid) {
-        setInvitation(data.invitation);
-        setEmail(data.invitation.email);
-        setRole(data.invitation.role);
-        toast({
-          title: "Invitation Found",
-          description: `You're invited to join as a ${data.invitation.role.toLowerCase()}!`,
-        });
-      } else {
-        toast({
-          title: "Invalid Invitation",
-          description: data.error || "This invitation link is not valid.",
-          variant: "destructive",
-        });
-      }
-    } catch (error: any) {
-      toast({
-        title: "Error validating invitation",
         description: error.message,
         variant: "destructive",
       });
@@ -171,11 +135,6 @@ const Auth = () => {
             used_at: new Date().toISOString(),
           })
           .eq('token', invitation.token);
-          body: { 
-            token: invitation.token,
-            userId: data.user.id
-          }
-        });
 
         if (invitationError) {
           console.error('Error completing invitation:', invitationError);
