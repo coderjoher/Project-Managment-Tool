@@ -271,7 +271,7 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      disabled={false}
+                      disabled={!!invitation}
                     />
                   </div>
                   <div className="space-y-2">
