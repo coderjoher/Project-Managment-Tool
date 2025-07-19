@@ -209,7 +209,9 @@ const Freelancers = () => {
       setGeneratedInviteUrl(`${window.location.origin}/auth?token=${token}`);
       toast({
         title: "Invitation Link Generated",
-        description: `Invitation link has been created for ${inviteEmail}`,
+        description: inviteEmail 
+          ? `Invitation link has been created for ${inviteEmail}`
+          : "Invitation link has been created for freelancer signup",
       });
 
       setInviteEmail('');
@@ -298,18 +300,18 @@ const Freelancers = () => {
                 <DialogHeader>
                   <DialogTitle>Invite New Freelancer</DialogTitle>
                   <DialogDescription>
-                    Generate a one-time invitation link for a new freelancer to sign up.
+                    Generate a one-time invitation link for a new freelancer to sign up. Email is optional.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
                   {!generatedInviteUrl ? (
                     <>
                       <div className="space-y-2">
-                        <Label htmlFor="invite-email">Email Address</Label>
+                        <Label htmlFor="invite-email">Email Address (Optional)</Label>
                         <Input
                           id="invite-email"
                           type="email"
-                          placeholder="freelancer@example.com"
+                          placeholder="freelancer@example.com (optional)"
                           value={inviteEmail}
                           onChange={(e) => setInviteEmail(e.target.value)}
                         />
@@ -320,7 +322,7 @@ const Freelancers = () => {
                         </Button>
                         <Button 
                           onClick={handleInviteFreelancer} 
-                          disabled={inviteLoading || !inviteEmail}
+                          disabled={inviteLoading}
                           className="gap-2"
                         >
                           {inviteLoading ? (

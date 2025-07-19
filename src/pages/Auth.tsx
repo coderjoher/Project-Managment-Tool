@@ -144,38 +144,25 @@ const Auth = () => {
       });
     } else if (data.user) {
       try {
-        // Create user profile
-        const { error: profileError } = await supabase
-          .from('User')
-          .insert({
-            id: data.user.id,
-            email: data.user.email,
-            name: name.trim(),
-            role: role,
-          });
+        // Use the complete-invitation edge function to handle both user profile creation and invitation completion
+        const { data: completionResult, error: completionError } = await supabase.functions.invoke('complete-invitation', {
+          body: {
+            token: invitation.token,
+            userId: data.user.id,
+            name: name.trim(), // Pass the name to the function
+            email: email
+          },
+          headers: {
+            'Authorization': `Bearer ${(await supabase.auth.getSession()).data.session?.access_token}`
+          }
+        });
 
-        if (profileError) {
-          console.error('Error creating user profile:', profileError);
-          throw profileError;
+        if (completionError) {
+          console.error('Error completing invitation:', completionError);
+          throw completionError;
         }
 
-        // Mark invitation as used
-        // Try multiple approaches to update the invitation
-        let invitationError = null;
-        
-        // Approach 1: Try direct update (this might work after user profile is created)
-        const { error: directError } = await supabase
-          .from('invitations')
-          .update({ used_at: new Date().toISOString() })
-          .eq('token', invitation.token)
-          .eq('email', email); // Match by email as well for additional security
-        
-        if (directError) {
-          console.error('Direct update failed:', directError);
-          invitationError = directError;
-        } else {
-          console.log('Successfully marked invitation as used');
-        }
+        console.log('Invitation completed successfully:', completionResult);
 
         toast({
           title: "Welcome!",
