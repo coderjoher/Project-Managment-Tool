@@ -16,6 +16,7 @@ import { format } from 'date-fns';
 import CustomerDetails from '@/components/project/CustomerDetails';
 import ProjectFinancial from '@/components/project/ProjectFinancial';
 import ProjectLog from '@/components/project/ProjectLog';
+import { ProjectChat } from '@/components/project/ProjectChat';
 
 interface Project {
   id: string;
@@ -639,6 +640,13 @@ const ProjectDetails = () => {
               <ProjectFinancial projectId={project.id} canEdit={canEdit} />
             </div>
           </div>
+
+          {/* Project Chat */}
+          {(isManager || isAcceptedFreelancer) && (
+            <div>
+              <ProjectChat projectId={project.id} projectTitle={project.title} />
+            </div>
+          )}
 
           {/* Project Activity */}
           <div>

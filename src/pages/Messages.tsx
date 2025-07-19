@@ -7,10 +7,13 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, MessageSquare, Send, Users, Search } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Send, Users, Search, Plus, UserPlus } from 'lucide-react';
 import { format } from 'date-fns';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-interface Chat {
+interface ProjectChat {
   id: string;
   projectId: string;
   offerId: string;
@@ -27,9 +30,26 @@ interface Chat {
   };
 }
 
+interface DirectChat {
+  id: string;
+  participant1Id: string;
+  participant2Id: string;
+  createdAt: string;
+  updatedAt: string;
+  participant1: {
+    name: string | null;
+    email: string;
+  };
+  participant2: {
+    name: string | null;
+    email: string;
+  };
+}
+
 interface ChatMessage {
   id: string;
-  chatId: string;
+  chatId: string | null;
+  directChatId: string | null;
   senderId: string;
   content: string;
   platform: string;
@@ -40,6 +60,12 @@ interface ChatMessage {
   };
 }
 
+interface UserOption {
+  id: string;
+  name: string | null;
+  email: string;
+}
+
 interface UserProfile {
   role: 'MANAGER' | 'FREELANCER';
 }
@@ -48,13 +74,18 @@ const Messages = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [chats, setChats] = useState<Chat[]>([]);
-  const [selectedChat, setSelectedChat] = useState<Chat | null>(null);
+  const [projectChats, setProjectChats] = useState<ProjectChat[]>([]);
+  const [directChats, setDirectChats] = useState<DirectChat[]>([]);
+  const [selectedChat, setSelectedChat] = useState<ProjectChat | DirectChat | null>(null);
+  const [selectedChatType, setSelectedChatType] = useState<'project' | 'direct'>('project');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [newMessage, setNewMessage] = useState('');
   const [sendingMessage, setSendingMessage] = useState(false);
+  const [showNewChatDialog, setShowNewChatDialog] = useState(false);
+  const [availableUsers, setAvailableUsers] = useState<UserOption[]>([]);
+  const [selectedUserId, setSelectedUserId] = useState<string>('');
 
   useEffect(() => {
     if (!user) {
@@ -62,14 +93,18 @@ const Messages = () => {
       return;
     }
     fetchUserProfile();
-    fetchChats();
+    fetchAllChats();
   }, [user, navigate]);
 
   useEffect(() => {
     if (selectedChat) {
-      fetchMessages(selectedChat.id);
+      if (selectedChatType === 'project') {
+        fetchMessages(selectedChat.id, null);
+      } else {
+        fetchMessages(null, selectedChat.id);
+      }
     }
-  }, [selectedChat]);
+  }, [selectedChat, selectedChatType]);
 
   const fetchUserProfile = async () => {
     if (!user) return;
@@ -92,11 +127,9 @@ const Messages = () => {
     }
   };
 
-  const fetchChats = async () => {
+  const fetchAllChats = async () => {
     try {
-      // For now, we'll show a placeholder since chats are tied to offers
-      // In a real implementation, this would fetch actual chat data
-      setChats([]);
+      await Promise.all([fetchProjectChats(), fetchDirectChats(), fetchAvailableUsers()]);
     } catch (error: any) {
       toast({
         title: "Error loading chats",
@@ -108,16 +141,99 @@ const Messages = () => {
     }
   };
 
-  const fetchMessages = async (chatId: string) => {
+  const fetchProjectChats = async () => {
+    if (!user) return;
+    
     try {
       const { data, error } = await supabase
+        .from('Chat')
+        .select(`
+          *,
+          Project(title),
+          Offer(price, User(name, email))
+        `)
+        .order('createdAt', { ascending: false });
+      
+      if (error) throw error;
+      setProjectChats(data || []);
+    } catch (error: any) {
+      console.error('Error fetching project chats:', error);
+    }
+  };
+
+  const fetchDirectChats = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('DirectChat')
+        .select(`
+          id,
+          participant1Id,
+          participant2Id,
+          createdAt,
+          updatedAt
+        `)
+        .or(`participant1Id.eq.${user.id},participant2Id.eq.${user.id}`)
+        .order('updatedAt', { ascending: false });
+      
+      if (error) throw error;
+
+      // Fetch participant details separately to avoid complex joins
+      const chatsWithParticipants = await Promise.all(
+        (data || []).map(async (chat) => {
+          const [participant1Response, participant2Response] = await Promise.all([
+            supabase.from('User').select('name, email').eq('id', chat.participant1Id).single(),
+            supabase.from('User').select('name, email').eq('id', chat.participant2Id).single()
+          ]);
+
+          return {
+            ...chat,
+            participant1: participant1Response.data || { name: null, email: 'Unknown' },
+            participant2: participant2Response.data || { name: null, email: 'Unknown' }
+          };
+        })
+      );
+
+      setDirectChats(chatsWithParticipants);
+    } catch (error: any) {
+      console.error('Error fetching direct chats:', error);
+    }
+  };
+
+  const fetchAvailableUsers = async () => {
+    if (!user) return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('User')
+        .select('id, name, email')
+        .neq('id', user.id);
+      
+      if (error) throw error;
+      setAvailableUsers(data || []);
+    } catch (error: any) {
+      console.error('Error fetching users:', error);
+    }
+  };
+
+  const fetchMessages = async (chatId: string | null, directChatId: string | null) => {
+    try {
+      let query = supabase
         .from('ChatMessage')
         .select(`
           *,
           User(name, email)
         `)
-        .eq('chatId', chatId)
         .order('createdAt', { ascending: true });
+
+      if (chatId) {
+        query = query.eq('chatId', chatId);
+      } else if (directChatId) {
+        query = query.eq('directChatId', directChatId);
+      }
+
+      const { data, error } = await query;
       
       if (error) throw error;
       setMessages(data || []);
@@ -140,7 +256,8 @@ const Messages = () => {
       
       const messageData = {
         id: messageId,
-        chatId: selectedChat.id,
+        chatId: selectedChatType === 'project' ? selectedChat.id : null,
+        directChatId: selectedChatType === 'direct' ? selectedChat.id : null,
         senderId: user.id,
         content: newMessage.trim(),
         platform: 'IN_APP' as const
@@ -153,7 +270,11 @@ const Messages = () => {
       if (error) throw error;
 
       setNewMessage('');
-      fetchMessages(selectedChat.id);
+      if (selectedChatType === 'project') {
+        fetchMessages(selectedChat.id, null);
+      } else {
+        fetchMessages(null, selectedChat.id);
+      }
     } catch (error: any) {
       toast({
         title: "Error sending message",
@@ -162,6 +283,76 @@ const Messages = () => {
       });
     } finally {
       setSendingMessage(false);
+    }
+  };
+
+  const handleCreateDirectChat = async () => {
+    if (!selectedUserId || !user) return;
+
+    try {
+      // Check if chat already exists
+      const { data: existingChat } = await supabase
+        .from('DirectChat')
+        .select('id')
+        .or(`and(participant1Id.eq.${user.id},participant2Id.eq.${selectedUserId}),and(participant1Id.eq.${selectedUserId},participant2Id.eq.${user.id})`)
+        .maybeSingle();
+
+      if (existingChat) {
+        toast({
+          title: "Chat already exists",
+          description: "You already have a conversation with this user.",
+        });
+        setShowNewChatDialog(false);
+        return;
+      }
+
+      const chatId = crypto.randomUUID();
+      const { error } = await supabase
+        .from('DirectChat')
+        .insert({
+          id: chatId,
+          participant1Id: user.id,
+          participant2Id: selectedUserId
+        });
+
+      if (error) throw error;
+
+      toast({
+        title: "Chat created",
+        description: "New conversation started successfully.",
+      });
+
+      setShowNewChatDialog(false);
+      setSelectedUserId('');
+      fetchDirectChats();
+    } catch (error: any) {
+      toast({
+        title: "Error creating chat",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const getChatDisplayName = (chat: ProjectChat | DirectChat, type: 'project' | 'direct') => {
+    if (type === 'project') {
+      const projectChat = chat as ProjectChat;
+      return projectChat.Project?.title || 'Untitled Project';
+    } else {
+      const directChat = chat as DirectChat;
+      const otherParticipant = directChat.participant1Id === user?.id 
+        ? directChat.participant2 
+        : directChat.participant1;
+      return otherParticipant?.name || otherParticipant?.email || 'Unknown User';
+    }
+  };
+
+  const getChatSecondaryInfo = (chat: ProjectChat | DirectChat, type: 'project' | 'direct') => {
+    if (type === 'project') {
+      const projectChat = chat as ProjectChat;
+      return `with ${projectChat.Offer?.User?.name || projectChat.Offer?.User?.email || 'Unknown'}`;
+    } else {
+      return 'Direct message';
     }
   };
 
@@ -176,6 +367,8 @@ const Messages = () => {
     );
   }
 
+  const currentChats = selectedChatType === 'project' ? projectChats : directChats;
+
   return (
     <div className="min-h-screen bg-background">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
@@ -187,7 +380,7 @@ const Messages = () => {
             </Button>
             <div>
               <h1 className="text-3xl font-bold">Messages</h1>
-              <p className="text-muted-foreground">Real-time project communication</p>
+              <p className="text-muted-foreground">Real-time project and direct communication</p>
             </div>
           </div>
         </div>
@@ -196,10 +389,67 @@ const Messages = () => {
           {/* Chat List */}
           <Card className="bg-gradient-card border-white/10">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Users className="w-5 h-5" />
-                Conversations
-              </CardTitle>
+              <div className="flex items-center justify-between">
+                <CardTitle className="flex items-center gap-2">
+                  <Users className="w-5 h-5" />
+                  Conversations
+                </CardTitle>
+                <Dialog open={showNewChatDialog} onOpenChange={setShowNewChatDialog}>
+                  <DialogTrigger asChild>
+                    <Button size="sm" variant="outline">
+                      <UserPlus className="w-4 h-4 mr-1" />
+                      New Chat
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Start New Chat</DialogTitle>
+                      <DialogDescription>
+                        Select a user to start a direct conversation with.
+                      </DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                      <Select value={selectedUserId} onValueChange={setSelectedUserId}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a user" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {availableUsers.map((user) => (
+                            <SelectItem key={user.id} value={user.id}>
+                              {user.name || user.email}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <div className="flex gap-2">
+                        <Button 
+                          onClick={handleCreateDirectChat} 
+                          disabled={!selectedUserId}
+                          className="flex-1"
+                        >
+                          Start Chat
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          onClick={() => setShowNewChatDialog(false)}
+                          className="flex-1"
+                        >
+                          Cancel
+                        </Button>
+                      </div>
+                    </div>
+                  </DialogContent>
+                </Dialog>
+              </div>
+              <Tabs value={selectedChatType} onValueChange={(value) => {
+                setSelectedChatType(value as 'project' | 'direct');
+                setSelectedChat(null);
+              }}>
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="project">Project Chats</TabsTrigger>
+                  <TabsTrigger value="direct">Direct Messages</TabsTrigger>
+                </TabsList>
+              </Tabs>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
@@ -209,17 +459,20 @@ const Messages = () => {
               </div>
             </CardHeader>
             <CardContent>
-              {chats.length === 0 ? (
+              {currentChats.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-16">
                   <MessageSquare className="w-12 h-12 text-muted-foreground mb-4" />
                   <h3 className="font-medium mb-2">No conversations yet</h3>
                   <p className="text-sm text-muted-foreground text-center">
-                    Chat conversations will appear here when you start collaborating on projects.
+                    {selectedChatType === 'project' 
+                      ? 'Project conversations will appear here when you start collaborating.'
+                      : 'Direct messages will appear here when you start chatting with users.'
+                    }
                   </p>
                 </div>
               ) : (
                 <div className="space-y-2">
-                  {chats.map((chat) => (
+                  {currentChats.map((chat) => (
                     <div
                       key={chat.id}
                       className={`p-3 rounded-lg cursor-pointer transition-colors ${
@@ -232,15 +485,17 @@ const Messages = () => {
                       <div className="flex items-start justify-between">
                         <div className="flex-1">
                           <h4 className="font-medium text-sm line-clamp-1">
-                            {chat.Project.title}
+                            {getChatDisplayName(chat, selectedChatType)}
                           </h4>
                           <p className="text-xs text-muted-foreground">
-                            with {chat.Offer.User.name || chat.Offer.User.email}
+                            {getChatSecondaryInfo(chat, selectedChatType)}
                           </p>
                         </div>
-                        <Badge variant="outline" className="text-xs">
-                          ${chat.Offer.price}
-                        </Badge>
+                        {selectedChatType === 'project' && (
+                          <Badge variant="outline" className="text-xs">
+                            ${(chat as ProjectChat).Offer?.price || 0}
+                          </Badge>
+                        )}
                       </div>
                       <div className="flex items-center justify-between mt-2">
                         <span className="text-xs text-muted-foreground">
@@ -262,9 +517,11 @@ const Messages = () => {
             {selectedChat ? (
               <>
                 <CardHeader className="border-b border-white/10">
-                  <CardTitle className="text-lg">{selectedChat.Project.title}</CardTitle>
+                  <CardTitle className="text-lg">
+                    {getChatDisplayName(selectedChat, selectedChatType)}
+                  </CardTitle>
                   <CardDescription>
-                    Conversation with {selectedChat.Offer.User.name || selectedChat.Offer.User.email}
+                    {getChatSecondaryInfo(selectedChat, selectedChatType)}
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="flex flex-col h-[500px]">
