@@ -64,9 +64,9 @@ export const ProjectChat: React.FC<ProjectChatProps> = ({ projectId, projectTitl
           table: 'ChatMessage',
           filter: `chatId=eq.${chatId}`
         },
-        (payload) => {
-          const newMessage = payload.new as ChatMessage;
-          setMessages(prev => [...prev, newMessage]);
+        () => {
+          // Refetch messages to get complete data with User info
+          fetchMessages(chatId);
         }
       )
       .subscribe();
