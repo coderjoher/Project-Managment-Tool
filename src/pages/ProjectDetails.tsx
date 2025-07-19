@@ -363,268 +363,290 @@ const ProjectDetails = () => {
 
   return (
     <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        {/* Header */}
         <div className="flex items-center justify-between mb-8">
-          <Button variant="ghost" onClick={() => navigate('/projects')}>
-            <ArrowLeft className="w-4 h-4 mr-2" />
+          <Button variant="ghost" onClick={() => navigate('/projects')} className="gap-2">
+            <ArrowLeft className="w-4 h-4" />
             Back to Projects
           </Button>
-          <div className="flex items-center gap-4">
-            <h1 className="text-3xl font-bold">Project Details</h1>
-            {canEdit && (
-              <div className="flex gap-2">
-                <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline">
-                      <Edit className="w-4 h-4 mr-2" />
-                      Edit
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[600px]">
-                    <DialogHeader>
-                      <DialogTitle>Edit Project</DialogTitle>
-                      <DialogDescription>
-                        Update project details
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="space-y-4">
+          
+          {canEdit && (
+            <div className="flex gap-2">
+              <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" size="sm" className="gap-2">
+                    <Edit className="w-4 h-4" />
+                    Edit
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[600px]">
+                  <DialogHeader>
+                    <DialogTitle>Edit Project</DialogTitle>
+                    <DialogDescription>
+                      Update project details
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="title">Title *</Label>
+                      <Input
+                        id="title"
+                        value={editFormData.title}
+                        onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="description">Description *</Label>
+                      <Textarea
+                        id="description"
+                        value={editFormData.description}
+                        onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
+                        rows={3}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="briefDetails">Brief Details</Label>
+                      <Textarea
+                        id="briefDetails"
+                        value={editFormData.briefDetails}
+                        onChange={(e) => setEditFormData({ ...editFormData, briefDetails: e.target.value })}
+                        rows={5}
+                        placeholder="Add detailed project brief..."
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
-                        <Label htmlFor="title">Title *</Label>
+                        <Label htmlFor="budget">Budget</Label>
                         <Input
-                          id="title"
-                          value={editFormData.title}
-                          onChange={(e) => setEditFormData({ ...editFormData, title: e.target.value })}
+                          id="budget"
+                          type="number"
+                          value={editFormData.budget}
+                          onChange={(e) => setEditFormData({ ...editFormData, budget: e.target.value })}
                         />
                       </div>
                       <div className="space-y-2">
-                        <Label htmlFor="description">Description *</Label>
-                        <Textarea
-                          id="description"
-                          value={editFormData.description}
-                          onChange={(e) => setEditFormData({ ...editFormData, description: e.target.value })}
-                          rows={3}
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="briefDetails">Brief Details (Rich Text)</Label>
-                        <Textarea
-                          id="briefDetails"
-                          value={editFormData.briefDetails}
-                          onChange={(e) => setEditFormData({ ...editFormData, briefDetails: e.target.value })}
-                          rows={5}
-                          placeholder="Add detailed project brief..."
-                        />
-                      </div>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="space-y-2">
-                          <Label htmlFor="budget">Budget</Label>
-                          <Input
-                            id="budget"
-                            type="number"
-                            value={editFormData.budget}
-                            onChange={(e) => setEditFormData({ ...editFormData, budget: e.target.value })}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label htmlFor="deadline">Deadline</Label>
-                          <Input
-                            id="deadline"
-                            type="date"
-                            value={editFormData.deadline}
-                            onChange={(e) => setEditFormData({ ...editFormData, deadline: e.target.value })}
-                          />
-                        </div>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="driveLink">Drive Link</Label>
+                        <Label htmlFor="deadline">Deadline</Label>
                         <Input
-                          id="driveLink"
-                          value={editFormData.driveLink}
-                          onChange={(e) => setEditFormData({ ...editFormData, driveLink: e.target.value })}
+                          id="deadline"
+                          type="date"
+                          value={editFormData.deadline}
+                          onChange={(e) => setEditFormData({ ...editFormData, deadline: e.target.value })}
                         />
-                      </div>
-                      <div className="flex justify-end gap-2">
-                        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
-                          Cancel
-                        </Button>
-                        <Button onClick={handleUpdateProject} disabled={saving}>
-                          {saving ? 'Saving...' : 'Update'}
-                        </Button>
                       </div>
                     </div>
-                  </DialogContent>
-                </Dialog>
-                <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-                  <DialogTrigger asChild>
-                    <Button variant="destructive">
-                      <Trash2 className="w-4 h-4 mr-2" />
-                      Delete
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Delete Project</DialogTitle>
-                      <DialogDescription>
-                        Are you sure you want to delete this project? This action cannot be undone.
-                      </DialogDescription>
-                    </DialogHeader>
+                    <div className="space-y-2">
+                      <Label htmlFor="driveLink">Drive Link</Label>
+                      <Input
+                        id="driveLink"
+                        value={editFormData.driveLink}
+                        onChange={(e) => setEditFormData({ ...editFormData, driveLink: e.target.value })}
+                      />
+                    </div>
                     <div className="flex justify-end gap-2">
-                      <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                      <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>
                         Cancel
                       </Button>
-                      <Button variant="destructive" onClick={handleDeleteProject} disabled={deleting}>
-                        {deleting ? 'Deleting...' : 'Delete'}
+                      <Button onClick={handleUpdateProject} disabled={saving}>
+                        {saving ? 'Saving...' : 'Update'}
                       </Button>
                     </div>
-                  </DialogContent>
-                </Dialog>
+                  </div>
+                </DialogContent>
+              </Dialog>
+              
+              <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+                <DialogTrigger asChild>
+                  <Button variant="destructive" size="sm" className="gap-2">
+                    <Trash2 className="w-4 h-4" />
+                    Delete
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Delete Project</DialogTitle>
+                    <DialogDescription>
+                      Are you sure you want to delete this project? This action cannot be undone.
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
+                      Cancel
+                    </Button>
+                    <Button variant="destructive" onClick={handleDeleteProject} disabled={deleting}>
+                      {deleting ? 'Deleting...' : 'Delete'}
+                    </Button>
+                  </div>
+                </DialogContent>
+              </Dialog>
+            </div>
+          )}
+        </div>
+
+        {/* Project Title & Status */}
+        <div className="mb-8">
+          <div className="flex items-start justify-between mb-4">
+            <h1 className="text-3xl font-bold leading-tight">{project.title}</h1>
+            <div className="flex items-center gap-3">
+              {currentStatus ? (
+                <Badge 
+                  variant="outline" 
+                  className="px-3 py-1"
+                  style={{ 
+                    backgroundColor: currentStatus.color + '10', 
+                    borderColor: currentStatus.color + '40',
+                    color: currentStatus.color 
+                  }}
+                >
+                  {currentStatus.title}
+                </Badge>
+              ) : (
+                <Badge variant="outline" className={`px-3 py-1 ${getStatusColor(project.status)}`}>
+                  {project.status.replace('_', ' ')}
+                </Badge>
+              )}
+              
+              {/* Status Change Dropdown */}
+              {canChangeStatus && categoryStatuses.length > 0 && (
+                <Select value={project.statusId || ''} onValueChange={handleChangeStatus}>
+                  <SelectTrigger className="w-[140px] h-8">
+                    <SelectValue placeholder="Change" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {categoryStatuses.map((status) => (
+                      <SelectItem key={status.id} value={status.id}>
+                        <div className="flex items-center gap-2">
+                          <div 
+                            className="w-2 h-2 rounded-full" 
+                            style={{ backgroundColor: status.color }}
+                          />
+                          {status.title}
+                        </div>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              )}
+              {canChangeStatus && categoryStatuses.length === 0 && project.status !== 'OPEN' && (
+                <Select value={project.status} onValueChange={handleChangeDefaultStatus}>
+                  <SelectTrigger className="w-[140px] h-8">
+                    <SelectValue placeholder="Change" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="IN_PROGRESS">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-blue-500" />
+                        In Progress
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="COMPLETED">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-purple-500" />
+                        Completed
+                      </div>
+                    </SelectItem>
+                    <SelectItem value="CANCELLED">
+                      <div className="flex items-center gap-2">
+                        <div className="w-2 h-2 rounded-full bg-red-500" />
+                        Cancelled
+                      </div>
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              )}
+            </div>
+          </div>
+          
+          <p className="text-lg text-muted-foreground leading-relaxed mb-6">
+            {project.description}
+          </p>
+          
+          {/* Project Info Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-6 py-6 border-y border-border">
+            {project.budget && (
+              <div className="text-center">
+                <div className="text-2xl font-bold text-foreground">
+                  ${project.budget.toLocaleString()}
+                </div>
+                <div className="text-sm text-muted-foreground">Budget</div>
+              </div>
+            )}
+            
+            {project.deadline && (
+              <div className="text-center">
+                <div className="text-2xl font-bold text-foreground">
+                  {format(new Date(project.deadline), 'MMM dd')}
+                </div>
+                <div className="text-sm text-muted-foreground">Deadline</div>
+              </div>
+            )}
+            
+            <div className="text-center">
+              <div className="text-2xl font-bold text-foreground">
+                {format(new Date(project.createdAt), 'MMM dd')}
+              </div>
+              <div className="text-sm text-muted-foreground">Created</div>
+            </div>
+            
+            {project.driveLink && (
+              <div className="text-center">
+                <a 
+                  href={project.driveLink} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
+                >
+                  <Link className="w-4 h-4" />
+                  Resources
+                </a>
               </div>
             )}
           </div>
         </div>
 
-        <div className="space-y-6">
-          {/* Main Project Card */}
-          <Card className="bg-gradient-card border-white/10">
-            <CardHeader>
-              <div className="flex items-start justify-between">
-                <CardTitle className="text-2xl">{project.title}</CardTitle>
-                <div className="flex items-center gap-2">
-                  {currentStatus ? (
-                    <Badge style={{ backgroundColor: currentStatus.color + '20', color: currentStatus.color }}>
-                      {currentStatus.title}
-                    </Badge>
-                  ) : (
-                    <Badge className={getStatusColor(project.status)}>
-                      {project.status.replace('_', ' ')}
-                    </Badge>
-                  )}
-                  {canChangeStatus && categoryStatuses.length > 0 && (
-                    <Select value={project.statusId || ''} onValueChange={handleChangeStatus}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Change status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {categoryStatuses.map((status) => (
-                          <SelectItem key={status.id} value={status.id}>
-                            <div className="flex items-center gap-2">
-                              <div 
-                                className="w-3 h-3 rounded-full" 
-                                style={{ backgroundColor: status.color }}
-                              />
-                              {status.title}
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  )}
-                  {canChangeStatus && categoryStatuses.length === 0 && project.status !== 'OPEN' && (
-                    <Select value={project.status} onValueChange={handleChangeDefaultStatus}>
-                      <SelectTrigger className="w-[180px]">
-                        <SelectValue placeholder="Change status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="IN_PROGRESS">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-blue-500" />
-                            In Progress
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="COMPLETED">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-purple-500" />
-                            Completed
-                          </div>
-                        </SelectItem>
-                        <SelectItem value="CANCELLED">
-                          <div className="flex items-center gap-2">
-                            <div className="w-3 h-3 rounded-full bg-red-500" />
-                            Cancelled
-                          </div>
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                  )}
-                </div>
+        {/* Project Brief */}
+        {project.briefDetails && (
+          <div className="mb-8">
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <FileText className="w-5 h-5" />
+              Project Brief
+            </h2>
+            <div className="bg-muted/30 rounded-lg p-6 border">
+              <div className="whitespace-pre-wrap text-foreground leading-relaxed">
+                {project.briefDetails}
               </div>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <CardDescription>{project.description}</CardDescription>
+            </div>
+          </div>
+        )}
 
-                {project.briefDetails && (
-                  <div className="p-4 bg-muted/50 rounded-lg">
-                    <h4 className="font-semibold mb-2 flex items-center gap-2">
-                      <FileText className="w-4 h-4" />
-                      Project Brief
-                    </h4>
-                    <div className="whitespace-pre-wrap text-sm">
-                      {project.briefDetails}
-                    </div>
-                  </div>
-                )}
-
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  {project.budget && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <DollarSign className="w-4 h-4 text-muted-foreground" />
-                      <span>Budget: ${project.budget.toLocaleString()}</span>
-                    </div>
-                  )}
-
-                  {project.deadline && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Calendar className="w-4 h-4 text-muted-foreground" />
-                      <span>Deadline: {format(new Date(project.deadline), 'MMM dd, yyyy')}</span>
-                    </div>
-                  )}
-
-                  {project.driveLink && (
-                    <div className="flex items-center gap-2 text-sm">
-                      <Link className="w-4 h-4 text-muted-foreground" />
-                      <a 
-                        href={project.driveLink} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-primary hover:underline"
-                      >
-                        View Resources
-                      </a>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-2 border-t border-white/10">
-                  <p className="text-xs text-muted-foreground">
-                    Created {format(new Date(project.createdAt), 'MMM dd, yyyy')}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Project Sections */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Customer Details */}
-            <CustomerDetails projectId={project.id} canEdit={canEdit} />
-
-            {/* Project Log */}
-            <ProjectLog projectId={project.id} />
+        {/* Content Sections */}
+        <div className="space-y-8">
+          {/* Customer Details */}
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Customer Details</h2>
+            <div className="bg-card rounded-lg border">
+              <CustomerDetails projectId={project.id} canEdit={canEdit} />
+            </div>
           </div>
 
           {/* Financial Details */}
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <DollarSign className="w-5 h-5" />
-                Financial Details
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
+          <div>
+            <h2 className="text-xl font-semibold mb-4 flex items-center gap-2">
+              <DollarSign className="w-5 h-5" />
+              Financial Overview
+            </h2>
+            <div className="bg-card rounded-lg border">
               <ProjectFinancial projectId={project.id} canEdit={canEdit} />
-            </CardContent>
-          </Card>
+            </div>
+          </div>
+
+          {/* Project Activity */}
+          <div>
+            <h2 className="text-xl font-semibold mb-4">Project Activity</h2>
+            <div className="bg-card rounded-lg border">
+              <ProjectLog projectId={project.id} />
+            </div>
+          </div>
         </div>
       </div>
     </div>
