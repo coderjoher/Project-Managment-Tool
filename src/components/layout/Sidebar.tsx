@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 
 interface SidebarProps {
+  className?: string;
+  onClose?: () => void;
   userProfile?: {
     id: string;
     name: string | null;
@@ -23,7 +25,7 @@ interface SidebarProps {
   } | null;
 }
 
-const Sidebar: React.FC<SidebarProps> = ({ userProfile }) => {
+const Sidebar: React.FC<SidebarProps> = ({ className, onClose, userProfile }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { signOut } = useAuth();
@@ -68,71 +70,68 @@ const Sidebar: React.FC<SidebarProps> = ({ userProfile }) => {
   const navItems = getNavItems();
 
   return (
-    <div className="w-64 bg-card border-r border-border flex flex-col">
-      {/* Logo */}
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
-            <Users className="w-5 h-5 text-primary-foreground" />
+    <div className={`w-60 bg-sidebar border-r border-sidebar-border flex flex-col ${className}`}>
+      {/* Header */}
+      <div className="p-4 border-b border-sidebar-border">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+            <span className="text-primary-foreground font-semibold text-sm">P</span>
           </div>
-          <div>
-            <h1 className="text-xl font-bold">ProjectFlow</h1>
-          </div>
+          <span className="font-semibold text-text-primary">ProjectFlow</span>
         </div>
       </div>
 
-      {/* User Info */}
-      <div className="p-6 border-b border-border">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-gradient-secondary rounded-full flex items-center justify-center">
-            <span className="text-sm font-medium text-secondary-foreground">
-              {userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : userProfile?.email?.charAt(0).toUpperCase()}
-            </span>
-          </div>
-          <div>
-            <p className="font-medium">User</p>
-            <p className="text-sm text-muted-foreground">
-              {userProfile?.role === 'FREELANCER' ? 'Freelancer' : 'Manager'}
-            </p>
-          </div>
-        </div>
-      </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4">
-        <div className="space-y-2">
+      <div className="flex-1 p-4 space-y-6">
+        {/* Main Navigation */}
+        <div className="space-y-1">
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
             
             return (
-              <Button
+              <button
                 key={item.path}
-                variant="ghost"
-                className={`w-full justify-start ${
+                className={`sidebar-item w-full text-left ${
                   active 
-                    ? 'bg-primary/10 text-primary hover:bg-primary/20' 
-                    : 'hover:bg-muted'
+                    ? 'text-primary bg-primary/10' 
+                    : 'text-text-secondary hover:text-text-primary'
                 }`}
                 onClick={() => navigate(item.path)}
               >
-                <Icon className="w-4 h-4 mr-3" />
-                {item.label}
-              </Button>
+                <Icon className="w-4 h-4" />
+                <span>{item.label}</span>
+              </button>
             );
           })}
         </div>
-      </nav>
+      </div>
 
-      {/* Sign Out */}
-      <div className="p-4 border-t border-border">
+      {/* Footer */}
+      <div className="p-4 border-t border-sidebar-border">
+        <div className="flex items-center gap-3 mb-4">
+          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
+            <span className="text-xs font-medium text-gray-600">
+              {userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : userProfile?.email?.charAt(0).toUpperCase()}
+            </span>
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-text-primary truncate">
+              {userProfile?.name || 'User'}
+            </p>
+            <p className="text-xs text-text-muted truncate">
+              {userProfile?.role === 'FREELANCER' ? 'Freelancer' : 'Manager'}
+            </p>
+          </div>
+        </div>
         <Button
           variant="ghost"
-          className="w-full justify-start text-red-500 hover:bg-red-50 hover:text-red-600"
+          className="sidebar-item w-full text-left text-red-500 hover:bg-red-50 hover:text-red-600"
           onClick={handleSignOut}
         >
-          <LogOut className="w-4 h-4 mr-3" />
-          Sign Out
+          <LogOut className="w-4 h-4" />
+          <span>Sign Out</span>
         </Button>
       </div>
     </div>

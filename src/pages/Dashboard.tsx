@@ -7,7 +7,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { SimpleThemeToggle } from '@/components/theme/ThemeToggle';
-import Layout from '@/components/layout';
+import { MainLayout } from '@/components/layout/MainLayout';
+import { ProjectTable } from '@/components/project/ProjectTable';
 import { 
   Users, 
   Briefcase, 
@@ -33,11 +34,24 @@ interface UserProfile {
   role: 'MANAGER' | 'FREELANCER';
 }
 
+interface Project {
+  id: string;
+  title: string;
+  description: string;
+  budget: number;
+  status: 'OPEN' | 'IN_PROGRESS' | 'COMPLETED';
+  managerId: string;
+  categoryId?: string;
+  createdAt: string;
+  Category?: { name: string };
+}
+
 const Dashboard = () => {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -47,6 +61,7 @@ const Dashboard = () => {
     }
 
     fetchUserProfile();
+    fetchProjects();
   }, [user, navigate]);
 
   const fetchUserProfile = async () => {
@@ -90,6 +105,26 @@ const Dashboard = () => {
     }
   };
 
+  const fetchProjects = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('Project')
+        .select(`
+          *,
+          Category (
+            name
+          )
+        `)
+        .order('createdAt', { ascending: false });
+
+      if (error) throw error;
+      setProjects(data || []);
+    } catch (error: any) {
+      console.error('Error fetching projects:', error);
+      setProjects([]);
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
@@ -109,87 +144,71 @@ const Dashboard = () => {
   const isManager = userProfile?.role === 'MANAGER';
 
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col">
-        {/* Header */}
-        <header className="bg-card border-b border-border p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-2xl font-bold">Welcome back, User!</h2>
-              <p className="text-muted-foreground">
-                Here's what's happening with your projects today.
-              </p>
-            </div>
-            <div className="flex items-center gap-4">
-              <SimpleThemeToggle />
-              <Button variant="ghost" size="icon">
-                <Bell className="w-5 h-5" />
-              </Button>
+    <MainLayout userProfile={userProfile}>
+      <div className="space-y-6 p-4">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl md:text-2xl font-semibold text-text-primary">Dashboard</h1>
+            <p className="text-text-secondary mt-1 text-sm md:text-base">
+              Welcome back! Here's what's happening with your projects.
+            </p>
+          </div>
+          <Button className="bg-primary hover:bg-primary-hover text-primary-foreground self-start sm:self-auto">
+            View All Projects
+          </Button>
+        </div>
+
+        {/* Stats Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+          <div className="bg-card p-6 rounded-lg border border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-blue-100 rounded-lg">
+                <Briefcase className="w-5 h-5 text-blue-600" />
+              </div>
+              <div>
+                <p className="text-sm text-text-muted">Total Projects</p>
+                <p className="text-2xl font-semibold text-text-primary">2</p>
+              </div>
             </div>
           </div>
-        </header>
 
-        {/* Dashboard Content */}
-        <main className="flex-1 p-6">
-          {/* Stats Overview */}
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-            <Card className="bg-card border-border">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Total Projects</p>
-                    <p className="text-2xl font-bold">2</p>
-                  </div>
-                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <Briefcase className="w-6 h-6 text-primary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-border">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Active Offers</p>
-                    <p className="text-2xl font-bold">0</p>
-                  </div>
-                  <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
-                    <Users className="w-6 h-6 text-secondary" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-border">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">In Progress</p>
-                    <p className="text-2xl font-bold">1</p>
-                  </div>
-                      <div className="w-12 h-12 bg-status-in-progress/10 rounded-lg flex items-center justify-center">
-                        <Clock className="w-6 h-6 text-status-in-progress" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            <Card className="bg-card border-border">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-sm text-muted-foreground">Completed</p>
-                    <p className="text-2xl font-bold">0</p>
-                  </div>
-                      <div className="w-12 h-12 bg-status-completed/10 rounded-lg flex items-center justify-center">
-                        <CheckCircle className="w-6 h-6 text-status-completed" />
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          <div className="bg-card p-6 rounded-lg border border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-green-100 rounded-lg">
+                <CheckCircle className="w-5 h-5 text-green-600" />
+              </div>
+              <div>
+                <p className="text-sm text-text-muted">Active Offers</p>
+                <p className="text-2xl font-semibold text-text-primary">0</p>
+              </div>
+            </div>
           </div>
+
+          <div className="bg-card p-6 rounded-lg border border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-orange-100 rounded-lg">
+                <Clock className="w-5 h-5 text-orange-600" />
+              </div>
+              <div>
+                <p className="text-sm text-text-muted">In Progress</p>
+                <p className="text-2xl font-semibold text-text-primary">1</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-card p-6 rounded-lg border border-border">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-purple-100 rounded-lg">
+                <TrendingUp className="w-5 h-5 text-purple-600" />
+              </div>
+              <div>
+                <p className="text-sm text-text-muted">Completed</p>
+                <p className="text-2xl font-semibold text-text-primary">0</p>
+              </div>
+            </div>
+          </div>
+        </div>
 
           {/* Manager Quick Actions */}
           {isManager && (
@@ -252,70 +271,27 @@ const Dashboard = () => {
             </div>
           )}
 
-          {/* Recent Projects and Offers */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-4">
-                <div className="flex items-center justify-between">
-                  <CardTitle className="text-lg">Recent Projects</CardTitle>
-                  <Button 
-                    variant="ghost" 
-                    size="sm"
-                    className="text-primary hover:text-primary/80"
-                    onClick={() => navigate('/projects')}
-                  >
-                    <Eye className="w-4 h-4 mr-2" />
-                    OPEN
-                  </Button>
-                </div>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
-                    <div>
-                      <h4 className="font-medium">First</h4>
-                      <p className="text-sm text-muted-foreground">7/18/2025</p>
-                    </div>
-                    <Badge className="bg-primary text-primary-foreground">OPEN</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
-                    <div>
-                      <h4 className="font-medium">This is first project</h4>
-                      <p className="text-sm text-muted-foreground">7/18/2025</p>
-                    </div>
-                    <Badge className="bg-status-in-progress text-white">IN PROGRESS</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+          {/* Recent Projects Section */}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-text-primary">Recent Projects</h2>
+              <Button variant="outline" size="sm" className="self-start sm:self-auto" onClick={() => navigate('/projects')}>
+                View All
+              </Button>
+            </div>
 
-            <Card className="bg-card border-border">
-              <CardHeader className="pb-4">
-                <CardTitle className="text-lg">Recent Offers</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
-                    <div>
-                      <h4 className="font-medium">$500</h4>
-                      <p className="text-sm text-muted-foreground">First</p>
-                    </div>
-                    <Badge className="bg-status-completed text-white">ACCEPTED</Badge>
-                  </div>
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
-                    <div>
-                      <h4 className="font-medium">$880</h4>
-                      <p className="text-sm text-muted-foreground">This is first project</p>
-                    </div>
-                    <Badge className="bg-status-completed text-white">ACCEPTED</Badge>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
+            {/* Project Table */}
+            <ProjectTable 
+              projects={projects.slice(0, 5)} // Show only first 5 projects
+              isManager={isManager}
+              userOffers={{}}
+              onViewProject={(projectId) => navigate(`/projects/${projectId}`)}
+              onSubmitOffer={() => {}}
+              onEditProject={() => {}}
+            />
           </div>
-        </main>
       </div>
-    </div>
+    </MainLayout>
   );
 };
 

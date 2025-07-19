@@ -11,6 +11,8 @@ import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
+import { MainLayout } from '@/components/layout/MainLayout';
+import { ProjectTable } from '@/components/project/ProjectTable';
 import { ArrowLeft, Plus, Calendar, DollarSign, Link, Briefcase, Clock, FileText, Eye, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 
@@ -27,6 +29,9 @@ interface Project {
 }
 
 interface UserProfile {
+  id: string;
+  name: string | null;
+  email: string;
   role: 'MANAGER' | 'FREELANCER';
 }
 
@@ -120,12 +125,30 @@ const Projects = () => {
     try {
       const { data, error } = await supabase
         .from('User')
-        .select('role')
+        .select('*')
         .eq('id', user.id)
         .single();
       
-      if (error) throw error;
-      setUserProfile(data);
+      if (error) {
+        console.log('No user profile found, creating one...');
+        // Create user profile if it doesn't exist
+        const role = user.user_metadata?.role || 'FREELANCER';
+        const { data: newProfile, error: createError } = await supabase
+          .from('User')
+          .insert({
+            id: user.id,
+            email: user.email!,
+            name: user.user_metadata?.name || null,
+            role: role
+          })
+          .select()
+          .single();
+
+        if (createError) throw createError;
+        setUserProfile(newProfile);
+      } else {
+        setUserProfile(data);
+      }
     } catch (error: any) {
       toast({
         title: "Error loading profile",
@@ -266,11 +289,6 @@ const Projects = () => {
     }
   };
 
-  const handleSubmitOfferClick = (project: Project) => {
-    setSelectedProject(project);
-    setIsSubmitOfferDialogOpen(true);
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'OPEN': return 'bg-status-open/10 text-status-open border-status-open/20';
@@ -303,27 +321,37 @@ const Projects = () => {
 
   const isManager = userProfile?.role === 'MANAGER';
 
+  const handleViewProject = (projectId: string) => {
+    navigate(`/projects/${projectId}`);
+  };
+
+  const handleSubmitOfferClick = (project: Project) => {
+    setSelectedProject(project);
+    setIsSubmitOfferDialogOpen(true);
+  };
+
+  const handleEditProject = (project: Project) => {
+    navigate(`/projects/${project.id}`);
+  };
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">{isManager ? 'Projects' : 'Offer Project'}</h1>
-              <p className="text-muted-foreground">
-                {isManager ? 'Manage your project portfolio' : 'Browse available projects and submit offers'}
-              </p>
-            </div>
+    <MainLayout userProfile={userProfile}>
+      <div className="space-y-6 p-4">
+        {/* Page Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <h1 className="text-xl md:text-2xl font-semibold text-text-primary">
+              {isManager ? 'Projects' : 'Available Projects'}
+            </h1>
+            <p className="text-text-secondary mt-1 text-sm md:text-base">
+              {isManager ? 'Manage your project portfolio' : 'Browse available projects and submit offers'}
+            </p>
           </div>
           
           {isManager && (
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
-                <Button>
+                <Button className="bg-primary hover:bg-primary-hover text-primary-foreground self-start sm:self-auto">
                   <Plus className="w-4 h-4 mr-2" />
                   New Project
                 </Button>
@@ -429,7 +457,7 @@ const Projects = () => {
         </div>
 
         {projects.length === 0 ? (
-          <Card className="bg-gradient-card border-white/10">
+          <Card className="bg-card border-border">
             <CardContent className="flex flex-col items-center justify-center py-16">
               <Briefcase className="w-16 h-16 text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">No projects found</h3>
@@ -448,98 +476,22 @@ const Projects = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {projects.map((project) => (
-              <Card key={project.id} className="bg-gradient-card border-white/10 hover:shadow-primary transition-all duration-300">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg line-clamp-2">{project.title}</CardTitle>
-                    <div className="flex gap-2">
-                      <Badge className={getStatusColor(project.status)}>
-                        {project.status.replace('_', ' ')}
-                      </Badge>
-                      {!isManager && userOffers[project.id] && (
-                        <Badge className={getOfferStatusColor(userOffers[project.id].status)}>
-                          {userOffers[project.id].status}
-                        </Badge>
-                      )}
-                    </div>
-                  </div>
-                  <CardDescription className="line-clamp-3">
-                    {project.description}
-                  </CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    {project.budget && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <DollarSign className="w-4 h-4 text-muted-foreground" />
-                        <span>Budget: ${project.budget.toLocaleString()}</span>
-                      </div>
-                    )}
-                    {project.deadline && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <span>Deadline: {format(new Date(project.deadline), 'MMM dd, yyyy')}</span>
-                      </div>
-                    )}
-                    {project.driveLink && (
-                      <div className="flex items-center gap-2 text-sm">
-                        <Link className="w-4 h-4 text-muted-foreground" />
-                        <a 
-                          href={project.driveLink} 
-                          target="_blank" 
-                          rel="noopener noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          View Resources
-                        </a>
-                      </div>
-                    )}
-                    <div className="pt-2 border-t border-white/10">
-                      <p className="text-xs text-muted-foreground">
-                        Created {format(new Date(project.createdAt), 'MMM dd, yyyy')}
-                      </p>
-                    </div>
-                    
-                    {/* Action buttons */}
-                    <div className="flex gap-2 pt-3">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/projects/${project.id}`)}
-                        className="flex-1"
-                      >
-                        <Eye className="w-4 h-4 mr-2" />
-                        View Details
-                      </Button>
-                      {!isManager && project.status === 'OPEN' && !userOffers[project.id] && (
-                        <Button
-                          size="sm"
-                          onClick={() => handleSubmitOfferClick(project)}
-                          className="flex-1"
-                        >
-                          <FileText className="w-4 h-4 mr-2" />
-                          Submit Offer
-                        </Button>
-                      )}
-                      {isManager && project.managerId === user?.id && (
-                        <div className="flex gap-1">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => navigate(`/projects/${project.id}`)}
-                            title="Edit Project"
-                          >
-                            <Edit className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
+          <div className="space-y-4">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <h2 className="text-lg font-semibold text-text-primary">
+                {isManager ? 'Your Projects' : 'Available Projects'} ({projects.length})
+              </h2>
+            </div>
+
+            {/* Project Table */}
+            <ProjectTable 
+              projects={projects}
+              isManager={isManager}
+              userOffers={userOffers}
+              onViewProject={handleViewProject}
+              onSubmitOffer={handleSubmitOfferClick}
+              onEditProject={handleEditProject}
+            />
           </div>
         )}
         
@@ -611,7 +563,7 @@ const Projects = () => {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </MainLayout>
   );
 };
 
