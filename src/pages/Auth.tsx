@@ -304,10 +304,10 @@ const Auth = () => {
                           </div>
                         </RadioGroup>
                       </div>
-                      <Alert>
+                      <Alert variant="destructive">
                         <AlertCircle className="h-4 w-4" />
                         <AlertDescription>
-                          Signup is currently invitation-only. Please contact an administrator for an invitation.
+                          Signup requires an invitation link. Please contact an administrator for access.
                         </AlertDescription>
                       </Alert>
                     </>

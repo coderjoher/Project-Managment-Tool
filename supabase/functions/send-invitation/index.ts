@@ -1,6 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.45.0';
-import { Resend } from "npm:resend@2.0.0";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -12,7 +11,7 @@ interface InvitationRequest {
   role: 'MANAGER' | 'FREELANCER';
 }
 
-const resend = new Resend(Deno.env.get('RESEND_API_KEY'));
+
 
 serve(async (req: Request) => {
   // Handle CORS preflight requests
@@ -122,71 +121,19 @@ serve(async (req: Request) => {
       });
     }
 
-    // Create invitation link
-    const invitationLink = `${Deno.env.get('SUPABASE_URL')?.replace('/v1', '')}/auth/signup?token=${token}`;
+    // Create invitation link - use the frontend URL
+    const frontendUrl = req.headers.get('origin') || 'http://localhost:3000';
+    const invitationLink = `${frontendUrl}/auth?token=${token}`;
 
-    // Send invitation email
-    const roleText = role === 'MANAGER' ? 'Manager' : 'Freelancer';
-    const { error: emailError } = await resend.emails.send({
-      from: 'Invitations <onboarding@resend.dev>',
-      to: [email],
-      subject: `You're invited to join as a ${roleText}`,
-      html: `
-        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #333; text-align: center;">You're Invited!</h1>
-          
-          <p style="color: #666; font-size: 16px; line-height: 1.5;">
-            You have been invited to join our platform as a <strong>${roleText}</strong>.
-          </p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${invitationLink}" 
-               style="background-color: #007bff; color: white; padding: 12px 24px; 
-                      text-decoration: none; border-radius: 5px; display: inline-block;
-                      font-weight: bold;">
-              Accept Invitation & Sign Up
-            </a>
-          </div>
-          
-          <p style="color: #999; font-size: 14px; line-height: 1.4;">
-            This invitation will expire in 7 days. If you didn't expect this invitation, 
-            you can safely ignore this email.
-          </p>
-          
-          <hr style="border: none; border-top: 1px solid #eee; margin: 20px 0;">
-          
-          <p style="color: #999; font-size: 12px; text-align: center;">
-            If the button doesn't work, copy and paste this link into your browser:<br>
-            <a href="${invitationLink}" style="color: #007bff; word-break: break-all;">
-              ${invitationLink}
-            </a>
-          </p>
-        </div>
-      `,
-    });
-
-    if (emailError) {
-      console.error('Error sending email:', emailError);
-      
-      // Delete the invitation since email failed
-      await supabase
-        .from('invitations')
-        .delete()
-        .eq('id', invitation.id);
-      
-      return new Response('Failed to send invitation email', { 
-        status: 500, 
-        headers: corsHeaders 
-      });
-    }
-
-    console.log(`Invitation sent successfully to ${email} for role ${role}`);
+    console.log(`Invitation created successfully for ${email} as ${role}`);
 
     return new Response(
       JSON.stringify({ 
         success: true, 
-        message: 'Invitation sent successfully',
-        invitationId: invitation.id
+        message: 'Invitation created successfully',
+        invitationId: invitation.id,
+        invitationUrl: invitationLink,
+        token: token
       }),
       { 
         status: 200, 

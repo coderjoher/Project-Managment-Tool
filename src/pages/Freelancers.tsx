@@ -7,9 +7,10 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Users, Search, Mail, Calendar, User, Briefcase, Star, Eye, Plus, Send } from 'lucide-react';
+import { ArrowLeft, Users, Search, Mail, Calendar, User, Briefcase, Star, Eye, Plus, Send, Copy, Check } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface FreelancerProfile {
@@ -48,6 +49,8 @@ const Freelancers = () => {
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
   const [inviteEmail, setInviteEmail] = useState('');
   const [inviteLoading, setInviteLoading] = useState(false);
+  const [generatedInviteUrl, setGeneratedInviteUrl] = useState('');
+  const [urlCopied, setUrlCopied] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -194,7 +197,7 @@ const Freelancers = () => {
 
     setInviteLoading(true);
     try {
-      const { error } = await supabase.functions.invoke('send-invitation', {
+      const { data, error } = await supabase.functions.invoke('send-invitation', {
         body: {
           email: inviteEmail,
           role: 'FREELANCER'
@@ -206,13 +209,13 @@ const Freelancers = () => {
 
       if (error) throw error;
 
+      setGeneratedInviteUrl(data.invitationUrl);
       toast({
-        title: "Invitation Sent",
-        description: `Invitation has been sent to ${inviteEmail}`,
+        title: "Invitation Link Generated",
+        description: `Invitation link has been created for ${inviteEmail}`,
       });
 
       setInviteEmail('');
-      setIsInviteDialogOpen(false);
     } catch (error: any) {
       toast({
         title: "Error sending invitation",
@@ -222,6 +225,24 @@ const Freelancers = () => {
     } finally {
       setInviteLoading(false);
     }
+  };
+
+  const copyInviteUrl = async () => {
+    if (generatedInviteUrl) {
+      await navigator.clipboard.writeText(generatedInviteUrl);
+      setUrlCopied(true);
+      setTimeout(() => setUrlCopied(false), 2000);
+      toast({
+        title: "Copied!",
+        description: "Invitation URL copied to clipboard",
+      });
+    }
+  };
+
+  const handleCloseInviteDialog = () => {
+    setIsInviteDialogOpen(false);
+    setGeneratedInviteUrl('');
+    setUrlCopied(false);
   };
 
   if (loading) {
@@ -269,7 +290,7 @@ const Freelancers = () => {
               <Users className="w-4 h-4 mr-1" />
               {freelancers.length} Freelancers
             </Badge>
-            <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
+            <Dialog open={isInviteDialogOpen} onOpenChange={handleCloseInviteDialog}>
               <DialogTrigger asChild>
                 <Button className="gap-2">
                   <Plus className="w-4 h-4" />
@@ -280,42 +301,85 @@ const Freelancers = () => {
                 <DialogHeader>
                   <DialogTitle>Invite New Freelancer</DialogTitle>
                   <DialogDescription>
-                    Send an invitation email to a new freelancer. They will receive a one-time signup link.
+                    Generate a one-time invitation link for a new freelancer to sign up.
                   </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="invite-email">Email Address</Label>
-                    <Input
-                      id="invite-email"
-                      type="email"
-                      placeholder="freelancer@example.com"
-                      value={inviteEmail}
-                      onChange={(e) => setInviteEmail(e.target.value)}
-                    />
-                  </div>
-                  <div className="flex justify-end gap-2">
-                    <Button variant="outline" onClick={() => setIsInviteDialogOpen(false)}>
-                      Cancel
-                    </Button>
-                    <Button 
-                      onClick={handleInviteFreelancer} 
-                      disabled={inviteLoading || !inviteEmail}
-                      className="gap-2"
-                    >
-                      {inviteLoading ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
-                          Sending...
-                        </>
-                      ) : (
-                        <>
-                          <Send className="w-4 h-4" />
-                          Send Invitation
-                        </>
-                      )}
-                    </Button>
-                  </div>
+                  {!generatedInviteUrl ? (
+                    <>
+                      <div className="space-y-2">
+                        <Label htmlFor="invite-email">Email Address</Label>
+                        <Input
+                          id="invite-email"
+                          type="email"
+                          placeholder="freelancer@example.com"
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                        />
+                      </div>
+                      <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={handleCloseInviteDialog}>
+                          Cancel
+                        </Button>
+                        <Button 
+                          onClick={handleInviteFreelancer} 
+                          disabled={inviteLoading || !inviteEmail}
+                          className="gap-2"
+                        >
+                          {inviteLoading ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                              Generating...
+                            </>
+                          ) : (
+                            <>
+                              <Plus className="w-4 h-4" />
+                              Generate Invitation Link
+                            </>
+                          )}
+                        </Button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <div className="space-y-2">
+                        <Label>Invitation Link Generated</Label>
+                        <div className="p-3 bg-muted rounded-lg border">
+                          <div className="text-sm font-mono break-all mb-3">
+                            {generatedInviteUrl}
+                          </div>
+                          <Button 
+                            onClick={copyInviteUrl} 
+                            className="w-full gap-2"
+                            variant={urlCopied ? "secondary" : "default"}
+                          >
+                            {urlCopied ? (
+                              <>
+                                <Check className="w-4 h-4" />
+                                Copied!
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-4 h-4" />
+                                Copy Link
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                      <Alert>
+                        <Mail className="h-4 w-4" />
+                        <AlertDescription>
+                          Share this link with the freelancer. They can use it once to create their account.
+                        </AlertDescription>
+                      </Alert>
+                      <div className="flex justify-end">
+                        <Button onClick={handleCloseInviteDialog}>
+                          Done
+                        </Button>
+                      </div>
+                    </>
+                  )}
                 </div>
               </DialogContent>
             </Dialog>
