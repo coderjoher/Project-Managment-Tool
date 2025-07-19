@@ -36,6 +36,7 @@ const App = () => (
               <Route element={<PrivateRoute />}>
                 <Route path="/dashboard" element={<Dashboard />} />
                 <Route path="/superadmin" element={<SuperAdmin />} />
+                <Route path="/projects" element={<Projects />} />F
                 <Route path="/projects/:projectId" element={<ProjectDetails />} />
                 <Route path="/accepted-projects" element={<AcceptedProjects />} />
                 <Route path="/offers" element={<Offers />} />
