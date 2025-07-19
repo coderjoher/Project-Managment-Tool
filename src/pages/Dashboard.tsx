@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
+import { SimpleThemeToggle } from '@/components/theme/ThemeToggle';
+import Layout from '@/components/layout';
 import { 
   Users, 
   Briefcase, 
@@ -16,7 +18,12 @@ import {
   Calendar,
   TrendingUp,
   FileText,
-  LogOut
+  LogOut,
+  BarChart3,
+  Clock,
+  CheckCircle,
+  Eye,
+  Tag
 } from 'lucide-react';
 
 interface UserProfile {
@@ -102,249 +109,212 @@ const Dashboard = () => {
   const isManager = userProfile?.role === 'MANAGER';
 
   return (
-    <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="bg-gradient-card border-b border-white/10 backdrop-blur-glass">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex justify-between items-center h-16">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-gradient-primary rounded-xl flex items-center justify-center">
-                <Users className="w-5 h-5 text-primary-foreground" />
-              </div>
-              <div>
-                <h1 className="text-xl font-bold">OfferSync Sphere</h1>
-                <p className="text-sm text-muted-foreground">
-                  Welcome back, {userProfile?.name || userProfile?.email}
-                </p>
-              </div>
+    <div className="min-h-screen bg-background flex">
+      {/* Main Content */}
+      <div className="flex-1 flex flex-col">
+        {/* Header */}
+        <header className="bg-card border-b border-border p-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-2xl font-bold">Welcome back, User!</h2>
+              <p className="text-muted-foreground">
+                Here's what's happening with your projects today.
+              </p>
             </div>
-            
             <div className="flex items-center gap-4">
-              <Badge 
-                variant="secondary" 
-                className={isManager ? "bg-gradient-secondary" : "bg-gradient-tertiary"}
-              >
-                {userProfile?.role}
-              </Badge>
+              <SimpleThemeToggle />
               <Button variant="ghost" size="icon">
                 <Bell className="w-5 h-5" />
               </Button>
-              <Button variant="ghost" onClick={handleSignOut}>
-                <LogOut className="w-4 h-4 mr-2" />
-                Sign Out
-              </Button>
             </div>
           </div>
-        </div>
-      </header>
+        </header>
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Welcome Section */}
-        <div className="mb-8">
-          <h2 className="text-3xl font-bold mb-2">
-            Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}!
-          </h2>
-          <p className="text-muted-foreground">
-            {isManager 
-              ? "Manage your projects and track collaboration progress." 
-              : "Discover new opportunities and manage your offers."
-            }
-          </p>
-        </div>
-
-        {/* Quick Actions */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card 
-            className="bg-gradient-card border-white/10 hover:shadow-primary transition-all duration-300 cursor-pointer group"
-            onClick={() => navigate('/projects')}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 bg-gradient-primary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <Briefcase className="w-6 h-6 text-primary-foreground" />
-                </div>
-                {isManager && <Plus className="w-5 h-5 text-muted-foreground" />}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardTitle className="text-lg mb-1">Projects</CardTitle>
-              <CardDescription>
-                {isManager ? "Create and manage projects" : "Browse available projects"}
-              </CardDescription>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className="bg-gradient-card border-white/10 hover:shadow-secondary transition-all duration-300 cursor-pointer group"
-            onClick={() => navigate('/offers')}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 bg-gradient-secondary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <FileText className="w-6 h-6 text-secondary-foreground" />
-                </div>
-                <TrendingUp className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardTitle className="text-lg mb-1">Offers</CardTitle>
-              <CardDescription>
-                {isManager ? "Review incoming offers" : "Manage your submissions"}
-              </CardDescription>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className="bg-gradient-card border-white/10 hover:shadow-tertiary transition-all duration-300 cursor-pointer group"
-            onClick={() => navigate('/messages')}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 bg-gradient-tertiary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <MessageSquare className="w-6 h-6 text-tertiary-foreground" />
-                </div>
-                <div className="w-2 h-2 bg-tertiary rounded-full"></div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardTitle className="text-lg mb-1">Messages</CardTitle>
-              <CardDescription>
-                Real-time project communication
-              </CardDescription>
-            </CardContent>
-          </Card>
-
-          <Card 
-            className="bg-gradient-card border-white/10 hover:shadow-primary transition-all duration-300 cursor-pointer group"
-            onClick={() => navigate('/finances')}
-          >
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <div className="w-12 h-12 bg-gradient-primary rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform">
-                  <DollarSign className="w-6 h-6 text-primary-foreground" />
-                </div>
-                <Calendar className="w-5 h-5 text-muted-foreground" />
-              </div>
-            </CardHeader>
-            <CardContent>
-              <CardTitle className="text-lg mb-1">Finances</CardTitle>
-              <CardDescription>
-                {isManager ? "Track payments and budgets" : "View earnings and invoices"}
-              </CardDescription>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Recent Activity */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="bg-gradient-card border-white/10">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Briefcase className="w-5 h-5" />
-                Recent Projects
-              </CardTitle>
-              <CardDescription>
-                Your latest project activity
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
+        {/* Dashboard Content */}
+        <main className="flex-1 p-6">
+          {/* Stats Overview */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <Card className="bg-card border-border">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-medium">E-commerce Platform</h4>
-                    <p className="text-sm text-muted-foreground">3 offers submitted</p>
+                    <p className="text-sm text-muted-foreground">Total Projects</p>
+                    <p className="text-2xl font-bold">2</p>
                   </div>
-                  <Badge variant="outline">Active</Badge>
-                </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
-                  <div>
-                    <h4 className="font-medium">Mobile App Design</h4>
-                    <p className="text-sm text-muted-foreground">In progress</p>
+                  <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                    <Briefcase className="w-6 h-6 text-primary" />
                   </div>
-                  <Badge variant="secondary">Working</Badge>
                 </div>
-                <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-medium">Website Redesign</h4>
+                    <p className="text-sm text-muted-foreground">Active Offers</p>
+                    <p className="text-2xl font-bold">0</p>
+                  </div>
+                  <div className="w-12 h-12 bg-secondary/10 rounded-lg flex items-center justify-center">
+                    <Users className="w-6 h-6 text-secondary" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-muted-foreground">In Progress</p>
+                    <p className="text-2xl font-bold">1</p>
+                  </div>
+                  <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                    <Clock className="w-6 h-6 text-orange-600" />
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div>
                     <p className="text-sm text-muted-foreground">Completed</p>
+                    <p className="text-2xl font-bold">0</p>
                   </div>
-                  <Badge variant="default" className="bg-success">Done</Badge>
+                  <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                    <CheckCircle className="w-6 h-6 text-green-600" />
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
 
-          <Card className="bg-gradient-card border-white/10">
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <MessageSquare className="w-5 h-5" />
-                Recent Messages
-              </CardTitle>
-              <CardDescription>
-                Latest conversation updates
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gradient-secondary rounded-full flex items-center justify-center">
-                    <span className="text-xs text-secondary-foreground font-medium">JS</span>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-sm">John Smith</h4>
-                    <p className="text-sm text-muted-foreground">The latest designs look great! When can we...</p>
-                    <span className="text-xs text-muted-foreground">2 hours ago</span>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gradient-tertiary rounded-full flex items-center justify-center">
-                    <span className="text-xs text-tertiary-foreground font-medium">AM</span>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-sm">Alice Miller</h4>
-                    <p className="text-sm text-muted-foreground">I've uploaded the revised proposal to...</p>
-                    <span className="text-xs text-muted-foreground">5 hours ago</span>
-                  </div>
-                </div>
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 bg-gradient-primary rounded-full flex items-center justify-center">
-                    <span className="text-xs text-primary-foreground font-medium">RD</span>
-                  </div>
-                  <div className="flex-1">
-                    <h4 className="font-medium text-sm">Robert Davis</h4>
-                    <p className="text-sm text-muted-foreground">Thanks for the quick turnaround on this...</p>
-                    <span className="text-xs text-muted-foreground">1 day ago</span>
-                  </div>
-                </div>
+          {/* Manager Quick Actions */}
+          {isManager && (
+            <div className="mb-8">
+              <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                <Card className="bg-card border-border hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/categories')}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-purple-500/10 rounded-lg flex items-center justify-center">
+                        <Tag className="w-5 h-5 text-purple-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium">Manage Categories</h4>
+                        <p className="text-sm text-muted-foreground">Organize your projects</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card border-border hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/projects')}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-500/10 rounded-lg flex items-center justify-center">
+                        <Briefcase className="w-5 h-5 text-blue-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium">Manage Projects</h4>
+                        <p className="text-sm text-muted-foreground">View and create projects</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card border-border hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/messages')}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-green-500/10 rounded-lg flex items-center justify-center">
+                        <MessageSquare className="w-5 h-5 text-green-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium">Messages</h4>
+                        <p className="text-sm text-muted-foreground">Chat with freelancers</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card border-border hover:shadow-md transition-shadow cursor-pointer" onClick={() => navigate('/freelancers')}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-orange-500/10 rounded-lg flex items-center justify-center">
+                        <Users className="w-5 h-5 text-orange-500" />
+                      </div>
+                      <div>
+                        <h4 className="font-medium">View Freelancers</h4>
+                        <p className="text-sm text-muted-foreground">Manage freelancer accounts</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
               </div>
-            </CardContent>
-          </Card>
-        </div>
+            </div>
+          )}
 
-        {/* Call to Action */}
-        <div className="mt-8 text-center">
-          <Card className="bg-gradient-hero/20 border-white/10 backdrop-blur-glass">
-            <CardContent className="pt-6">
-              <h3 className="text-2xl font-bold mb-2">Ready to get started?</h3>
-              <p className="text-muted-foreground mb-6">
-                {isManager 
-                  ? "Create your first project and start collaborating with talented freelancers."
-                  : "Browse available projects and submit your best offers to get hired."
-                }
-              </p>
-              <Button 
-                size="lg" 
-                variant={isManager ? "secondary" : "tertiary"}
-                className="px-8"
-              >
-                <Plus className="w-5 h-5 mr-2" />
-                {isManager ? "Create Project" : "Find Projects"}
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-      </main>
+          {/* Recent Projects and Offers */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-4">
+                <div className="flex items-center justify-between">
+                  <CardTitle className="text-lg">Recent Projects</CardTitle>
+                  <Button 
+                    variant="ghost" 
+                    size="sm"
+                    className="text-primary hover:text-primary/80"
+                    onClick={() => navigate('/projects')}
+                  >
+                    <Eye className="w-4 h-4 mr-2" />
+                    OPEN
+                  </Button>
+                </div>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
+                    <div>
+                      <h4 className="font-medium">First</h4>
+                      <p className="text-sm text-muted-foreground">7/18/2025</p>
+                    </div>
+                    <Badge className="bg-primary text-primary-foreground">OPEN</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
+                    <div>
+                      <h4 className="font-medium">This is first project</h4>
+                      <p className="text-sm text-muted-foreground">7/18/2025</p>
+                    </div>
+                    <Badge className="bg-orange-500 text-white">IN PROGRESS</Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            <Card className="bg-card border-border">
+              <CardHeader className="pb-4">
+                <CardTitle className="text-lg">Recent Offers</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
+                    <div>
+                      <h4 className="font-medium">$500</h4>
+                      <p className="text-sm text-muted-foreground">First</p>
+                    </div>
+                    <Badge className="bg-green-500 text-white">ACCEPTED</Badge>
+                  </div>
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-muted/20">
+                    <div>
+                      <h4 className="font-medium">$880</h4>
+                      <p className="text-sm text-muted-foreground">This is first project</p>
+                    </div>
+                    <Badge className="bg-green-500 text-white">ACCEPTED</Badge>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </main>
+      </div>
     </div>
   );
 };

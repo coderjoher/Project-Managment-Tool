@@ -100,33 +100,59 @@ const Finances = () => {
     if (!user) return;
     
     try {
-      let query = supabase.from('Financial').select(`
-        *,
-        Project!inner(title, managerId)
-      `);
-
-      // Filter based on user role
+      // Get user profile first
       const { data: profile } = await supabase
         .from('User')
         .select('role')
         .eq('id', user.id)
         .single();
 
-      if (profile?.role === 'MANAGER') {
-        query = query.eq('Project.managerId', user.id);
-      } else {
-        // For freelancers, we need to find financials for projects they have accepted offers on
-        // This is a simplified version - in reality you'd join through offers
-        query = query.limit(0); // Hide for now until proper relationship is established
-      }
+      let financials: Financial[] = [];
 
-      const { data, error } = await query.order('createdAt', { ascending: false });
+      if (profile?.role === 'MANAGER') {
+        // For managers, get financials for their projects
+        const { data, error } = await supabase
+          .from('Financial')
+          .select(`
+            *,
+            Project!inner(title, managerId)
+          `)
+          .eq('Project.managerId', user.id)
+          .order('createdAt', { ascending: false });
+        
+        if (error) throw error;
+        financials = data || [];
+      } else {
+        // For freelancers, get financials for projects they have accepted offers on
+        const { data: acceptedOffers, error: offersError } = await supabase
+          .from('Offer')
+          .select('projectId')
+          .eq('freelancerId', user.id)
+          .eq('status', 'ACCEPTED');
+        
+        if (offersError) throw offersError;
+        
+        if (acceptedOffers && acceptedOffers.length > 0) {
+          const projectIds = acceptedOffers.map(offer => offer.projectId);
+          
+          const { data, error } = await supabase
+            .from('Financial')
+            .select(`
+              *,
+              Project!inner(title, managerId)
+            `)
+            .in('projectId', projectIds)
+            .order('createdAt', { ascending: false });
+          
+          if (error) throw error;
+          financials = data || [];
+        }
+      }
       
-      if (error) throw error;
-      setFinancials(data || []);
+      setFinancials(financials);
       
-      if (data && data.length > 0) {
-        setSelectedFinancial(data[0]);
+      if (financials.length > 0) {
+        setSelectedFinancial(financials[0]);
       }
     } catch (error: any) {
       toast({

@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Plus, Calendar, DollarSign, Link, Briefcase } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, DollarSign, Link, Briefcase, Clock, FileText, Eye, Edit } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Project {
@@ -29,21 +30,49 @@ interface UserProfile {
   role: 'MANAGER' | 'FREELANCER';
 }
 
+interface Offer {
+  id: string;
+  projectId: string;
+  freelancerId: string;
+  price: number;
+  deliveryTime: number;
+  description: string | null;
+  status: 'PENDING' | 'ACCEPTED' | 'REJECTED';
+  createdAt: string;
+}
+
+interface ProjectCategory {
+  id: string;
+  title: string;
+  status: 'ACTIVE' | 'INACTIVE';
+}
+
 const Projects = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [projects, setProjects] = useState<Project[]>([]);
+  const [categories, setCategories] = useState<ProjectCategory[]>([]);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [userOffers, setUserOffers] = useState<{ [projectId: string]: Offer }>({});
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     title: '',
     description: '',
     budget: '',
     driveLink: '',
-    deadline: ''
+    deadline: '',
+    categoryId: ''
   });
+  const [isSubmitOfferDialogOpen, setIsSubmitOfferDialogOpen] = useState(false);
+  const [selectedProject, setSelectedProject] = useState<Project | null>(null);
+  const [offerFormData, setOfferFormData] = useState({
+    price: '',
+    deliveryTime: '',
+    description: ''
+  });
+  const [isSubmittingOffer, setIsSubmittingOffer] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -53,6 +82,37 @@ const Projects = () => {
     fetchUserProfile();
     fetchProjects();
   }, [user, navigate]);
+  
+  useEffect(() => {
+    if (userProfile) {
+      fetchUserOffers();
+      if (userProfile.role === 'MANAGER') {
+        fetchCategories();
+      }
+    }
+  }, [userProfile, user]);
+
+  const fetchCategories = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('ProjectCategory')
+        .select('id, title, status')
+        .eq('managerId', user.id)
+        .eq('status', 'ACTIVE')
+        .order('title', { ascending: true });
+
+      if (error) throw error;
+      setCategories(data || []);
+    } catch (error: any) {
+      toast({
+        title: "Error loading categories",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   const fetchUserProfile = async () => {
     if (!user) return;
@@ -95,6 +155,29 @@ const Projects = () => {
     }
   };
 
+  const fetchUserOffers = async () => {
+    if (!user || userProfile?.role !== 'FREELANCER') return;
+    
+    try {
+      const { data, error } = await supabase
+        .from('Offer')
+        .select('*')
+        .eq('freelancerId', user.id);
+      
+      if (error) throw error;
+      
+      // Convert to a map for easy lookup
+      const offersMap: { [projectId: string]: Offer } = {};
+      data?.forEach((offer) => {
+        offersMap[offer.projectId] = offer;
+      });
+      
+      setUserOffers(offersMap);
+    } catch (error: any) {
+      console.error('Error fetching user offers:', error);
+    }
+  };
+
   const handleCreateProject = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!user || userProfile?.role !== 'MANAGER') return;
@@ -110,6 +193,7 @@ const Projects = () => {
         budget: formData.budget ? parseFloat(formData.budget) : null,
         driveLink: formData.driveLink || null,
         deadline: formData.deadline || null,
+        categoryId: formData.categoryId,
         managerId: user.id,
         status: 'OPEN' as const,
         updatedAt: new Date().toISOString()
@@ -127,7 +211,7 @@ const Projects = () => {
       });
 
       setIsCreateDialogOpen(false);
-      setFormData({ title: '', description: '', budget: '', driveLink: '', deadline: '' });
+      setFormData({ title: '', description: '', budget: '', driveLink: '', deadline: '', categoryId: '' });
       fetchProjects();
     } catch (error: any) {
       toast({
@@ -138,12 +222,70 @@ const Projects = () => {
     }
   };
 
+  const handleSubmitOffer = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!user || !selectedProject || userProfile?.role !== 'FREELANCER' || isSubmittingOffer) return;
+
+    setIsSubmittingOffer(true);
+    try {
+      const offerId = crypto.randomUUID();
+      
+      const offerData = {
+        id: offerId,
+        projectId: selectedProject.id,
+        freelancerId: user.id,
+        price: parseFloat(offerFormData.price),
+        deliveryTime: parseInt(offerFormData.deliveryTime),
+        description: offerFormData.description || null,
+        status: 'PENDING' as const
+      };
+
+      const { error } = await supabase
+        .from('Offer')
+        .insert(offerData);
+
+      if (error) throw error;
+
+      toast({
+        title: "Offer submitted successfully",
+        description: "Your offer has been sent to the project manager",
+      });
+
+      setIsSubmitOfferDialogOpen(false);
+      setOfferFormData({ price: '', deliveryTime: '', description: '' });
+      setSelectedProject(null);
+      fetchUserOffers(); // Refresh offers to show the new offer status
+    } catch (error: any) {
+      toast({
+        title: "Error submitting offer",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmittingOffer(false);
+    }
+  };
+
+  const handleSubmitOfferClick = (project: Project) => {
+    setSelectedProject(project);
+    setIsSubmitOfferDialogOpen(true);
+  };
+
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'OPEN': return 'bg-green-500/10 text-green-500 border-green-500/20';
       case 'IN_PROGRESS': return 'bg-blue-500/10 text-blue-500 border-blue-500/20';
       case 'COMPLETED': return 'bg-purple-500/10 text-purple-500 border-purple-500/20';
       case 'CANCELLED': return 'bg-red-500/10 text-red-500 border-red-500/20';
+      default: return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
+    }
+  };
+
+  const getOfferStatusColor = (status: string) => {
+    switch (status) {
+      case 'PENDING': return 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20';
+      case 'ACCEPTED': return 'bg-green-500/10 text-green-500 border-green-500/20';
+      case 'REJECTED': return 'bg-red-500/10 text-red-500 border-red-500/20';
       default: return 'bg-gray-500/10 text-gray-500 border-gray-500/20';
     }
   };
@@ -171,9 +313,9 @@ const Projects = () => {
               Back to Dashboard
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">Projects</h1>
+              <h1 className="text-3xl font-bold">{isManager ? 'Projects' : 'Offer Project'}</h1>
               <p className="text-muted-foreground">
-                {isManager ? 'Manage your project portfolio' : 'Browse available projects'}
+                {isManager ? 'Manage your project portfolio' : 'Browse available projects and submit offers'}
               </p>
             </div>
           </div>
@@ -215,6 +357,31 @@ const Projects = () => {
                         rows={4}
                         required
                       />
+                    </div>
+                    <div className="grid gap-2">
+                      <Label htmlFor="categoryId">Category *</Label>
+                      <Select
+                        value={formData.categoryId}
+                        onValueChange={(value) => setFormData(prev => ({ ...prev, categoryId: value }))}
+                        required
+                      >
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select a category" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {categories.length === 0 ? (
+                            <SelectItem value="" disabled>
+                              No categories available. Create categories first.
+                            </SelectItem>
+                          ) : (
+                            categories.map((category) => (
+                              <SelectItem key={category.id} value={category.id}>
+                                {category.title}
+                              </SelectItem>
+                            ))
+                          )}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
                       <div className="grid gap-2">
@@ -287,9 +454,16 @@ const Projects = () => {
                 <CardHeader>
                   <div className="flex items-start justify-between">
                     <CardTitle className="text-lg line-clamp-2">{project.title}</CardTitle>
-                    <Badge className={getStatusColor(project.status)}>
-                      {project.status.replace('_', ' ')}
-                    </Badge>
+                    <div className="flex gap-2">
+                      <Badge className={getStatusColor(project.status)}>
+                        {project.status.replace('_', ' ')}
+                      </Badge>
+                      {!isManager && userOffers[project.id] && (
+                        <Badge className={getOfferStatusColor(userOffers[project.id].status)}>
+                          {userOffers[project.id].status}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                   <CardDescription className="line-clamp-3">
                     {project.description}
@@ -327,12 +501,115 @@ const Projects = () => {
                         Created {format(new Date(project.createdAt), 'MMM dd, yyyy')}
                       </p>
                     </div>
+                    
+                    {/* Action buttons */}
+                    <div className="flex gap-2 pt-3">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => navigate(`/projects/${project.id}`)}
+                        className="flex-1"
+                      >
+                        <Eye className="w-4 h-4 mr-2" />
+                        View Details
+                      </Button>
+                      {!isManager && project.status === 'OPEN' && !userOffers[project.id] && (
+                        <Button
+                          size="sm"
+                          onClick={() => handleSubmitOfferClick(project)}
+                          className="flex-1"
+                        >
+                          <FileText className="w-4 h-4 mr-2" />
+                          Submit Offer
+                        </Button>
+                      )}
+                      {isManager && project.managerId === user?.id && (
+                        <div className="flex gap-1">
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => navigate(`/projects/${project.id}`)}
+                            title="Edit Project"
+                          >
+                            <Edit className="w-4 h-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </div>
                   </div>
                 </CardContent>
               </Card>
             ))}
           </div>
         )}
+        
+        {/* Submit Offer Dialog */}
+        <Dialog open={isSubmitOfferDialogOpen} onOpenChange={setIsSubmitOfferDialogOpen}>
+          <DialogContent className="sm:max-w-[500px]">
+            <DialogHeader>
+              <DialogTitle>Submit Offer</DialogTitle>
+              <DialogDescription>
+                {selectedProject && `Submit your offer for "${selectedProject.title}"`}
+              </DialogDescription>
+            </DialogHeader>
+            <form onSubmit={handleSubmitOffer}>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="grid gap-2">
+                    <Label htmlFor="offer-price">Price ($) *</Label>
+                    <Input
+                      id="offer-price"
+                      type="number"
+                      value={offerFormData.price}
+                      onChange={(e) => setOfferFormData(prev => ({ ...prev, price: e.target.value }))}
+                      placeholder="0.00"
+                      min="0"
+                      step="0.01"
+                      required
+                    />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="offer-delivery">Delivery (days) *</Label>
+                    <Input
+                      id="offer-delivery"
+                      type="number"
+                      value={offerFormData.deliveryTime}
+                      onChange={(e) => setOfferFormData(prev => ({ ...prev, deliveryTime: e.target.value }))}
+                      placeholder="7"
+                      min="1"
+                      required
+                    />
+                  </div>
+                </div>
+                <div className="grid gap-2">
+                  <Label htmlFor="offer-description">Additional Notes (Optional)</Label>
+                  <Textarea
+                    id="offer-description"
+                    value={offerFormData.description}
+                    onChange={(e) => setOfferFormData(prev => ({ ...prev, description: e.target.value }))}
+                    placeholder="Describe your approach or add any relevant details"
+                    rows={3}
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline" onClick={() => setIsSubmitOfferDialogOpen(false)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={isSubmittingOffer}>
+                  {isSubmittingOffer ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
+                      Submitting...
+                    </>
+                  ) : (
+                    'Submit Offer'
+                  )}
+                </Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );

@@ -186,16 +186,65 @@ const Offers = () => {
 
   const handleUpdateOfferStatus = async (offerId: string, status: 'ACCEPTED' | 'REJECTED') => {
     try {
-      const { error } = await supabase
+      // First, get the offer and project details
+      const { data: offer, error: offerError } = await supabase
+        .from('Offer')
+        .select(`
+          projectId,
+          price,
+          Project!inner(budget)
+        `)
+        .eq('id', offerId)
+        .single();
+
+      if (offerError) throw offerError;
+
+      // Update the offer status
+      const { error: updateOfferError } = await supabase
         .from('Offer')
         .update({ status })
         .eq('id', offerId);
 
-      if (error) throw error;
+      if (updateOfferError) throw updateOfferError;
+
+      // If the offer is accepted, update project status and create financial record
+      if (status === 'ACCEPTED') {
+        // Update the project status to IN_PROGRESS
+        const { error: updateProjectError } = await supabase
+          .from('Project')
+          .update({ 
+            status: 'IN_PROGRESS',
+            updatedAt: new Date().toISOString()
+          })
+          .eq('id', offer.projectId);
+
+        if (updateProjectError) throw updateProjectError;
+
+        // Create a financial record for the accepted offer
+        const financialId = crypto.randomUUID();
+        const currentTime = new Date().toISOString();
+        
+        const { error: createFinancialError } = await supabase
+          .from('Financial')
+          .insert({
+            id: financialId,
+            projectId: offer.projectId,
+            acceptedPrice: offer.price,
+            estimatedBudget: offer.Project?.budget || null,
+            amountPaid: 0,
+            paymentStatus: 'PENDING',
+            createdAt: currentTime,
+            updatedAt: currentTime
+          });
+
+        if (createFinancialError) throw createFinancialError;
+      }
 
       toast({
         title: `Offer ${status.toLowerCase()}`,
-        description: `The offer has been ${status.toLowerCase()}`,
+        description: status === 'ACCEPTED' 
+          ? `The offer has been accepted and the project is now in progress`
+          : `The offer has been ${status.toLowerCase()}`,
       });
 
       fetchOffers();

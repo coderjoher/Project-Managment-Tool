@@ -4,6 +4,7 @@ import { useAuth } from '@/components/auth/AuthProvider';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { SimpleThemeToggle } from '@/components/theme/ThemeToggle';
 import { 
   Users, 
   Briefcase, 
@@ -66,7 +67,7 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       {/* Navigation */}
-      <nav className="bg-gradient-card backdrop-blur-glass border-b border-white/10 sticky top-0 z-50">
+      <nav className="bg-gradient-card backdrop-blur-glass border-b border-border sticky top-0 z-50">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             <div className="flex items-center gap-3">
@@ -76,6 +77,7 @@ const Index = () => {
               <span className="text-xl font-bold">OfferSync Sphere</span>
             </div>
             <div className="flex items-center gap-4">
+              <SimpleThemeToggle />
               <Button variant="ghost" onClick={() => navigate('/auth')}>
                 Sign In
               </Button>
