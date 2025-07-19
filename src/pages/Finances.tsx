@@ -8,10 +8,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
-import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, DollarSign, TrendingUp, Send, Gift, Plus, ArrowUp, ArrowDown, Users, Calendar, Eye } from 'lucide-react';
+import { ArrowLeft, DollarSign, TrendingUp, Send, Gift, Plus, ArrowUp, Users, Eye } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 
@@ -105,7 +104,6 @@ const Finances = () => {
         .single();
 
       if (profile?.role !== 'MANAGER') {
-        // For non-managers, redirect or show different view
         setLoading(false);
         return;
       }
@@ -220,12 +218,11 @@ const Finances = () => {
     if (!selectedFreelancer || !user) return;
 
     try {
-      // Create a special financial update for gifts/bonuses
       const updateId = crypto.randomUUID();
       
       const updateData = {
         id: updateId,
-        financialId: selectedFreelancer.projects[0]?.id || '', // Use first project or create a general one
+        financialId: selectedFreelancer.projects[0]?.id || '',
         amount: parseFloat(giftForm.amount),
         description: `${giftForm.type === 'gift' ? '🎁 Gift' : '💰 Bonus'}: ${giftForm.description}`,
         updatedById: user.id
@@ -266,7 +263,7 @@ const Finances = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-purple-950 flex items-center justify-center">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
           <span className="text-lg">Loading finances...</span>
@@ -279,12 +276,12 @@ const Finances = () => {
 
   if (!isManager) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <Card className="max-w-md w-full mx-4">
+      <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-purple-950 flex items-center justify-center">
+        <Card className="max-w-md w-full mx-4 bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-white/20 dark:border-slate-700/50">
           <CardContent className="flex flex-col items-center justify-center py-16">
-            <DollarSign className="w-16 h-16 text-muted-foreground mb-4" />
+            <DollarSign className="w-16 h-16 text-slate-400 mb-4" />
             <h3 className="text-xl font-semibold mb-2">Manager Access Required</h3>
-            <p className="text-muted-foreground text-center mb-6">
+            <p className="text-slate-600 dark:text-slate-400 text-center mb-6">
               This page is only available for managers to track freelancer payments.
             </p>
             <Button onClick={() => navigate('/dashboard')}>
@@ -298,332 +295,300 @@ const Finances = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-purple-950">
+      <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
+            <Button variant="ghost" onClick={() => navigate('/dashboard')} className="hover:bg-white/80 dark:hover:bg-slate-800/80">
               <ArrowLeft className="w-4 h-4 mr-2" />
               Back
             </Button>
             <div>
-              <h1 className="text-3xl font-bold">Financial Dashboard</h1>
-              <p className="text-muted-foreground">Manage freelancer payments and track earnings</p>
+              <h1 className="text-3xl font-bold bg-gradient-to-r from-slate-900 to-purple-700 dark:from-white dark:to-purple-300 bg-clip-text text-transparent">
+                Financial Dashboard
+              </h1>
+              <p className="text-slate-600 dark:text-slate-400">Welcome back, track your team's earnings</p>
             </div>
           </div>
         </div>
 
-        {/* Top Cards - Summary */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <Card className="bg-gradient-to-r from-green-500/10 to-green-600/10 border-green-500/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Paid</p>
-                  <p className="text-2xl font-bold text-green-600">${totalStats.totalPaid.toLocaleString()}</p>
-                </div>
-                <TrendingUp className="h-8 w-8 text-green-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-blue-500/10 to-blue-600/10 border-blue-500/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Total Pending</p>
-                  <p className="text-2xl font-bold text-blue-600">${totalStats.totalPending.toLocaleString()}</p>
-                </div>
-                <DollarSign className="h-8 w-8 text-blue-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-purple-500/10 to-purple-600/10 border-purple-500/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Active Freelancers</p>
-                  <p className="text-2xl font-bold text-purple-600">{totalStats.activeFreelancers}</p>
-                </div>
-                <Users className="h-8 w-8 text-purple-600" />
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="bg-gradient-to-r from-orange-500/10 to-orange-600/10 border-orange-500/20">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-muted-foreground">Completed Projects</p>
-                  <p className="text-2xl font-bold text-orange-600">{totalStats.completedProjects}</p>
-                </div>
-                <Calendar className="h-8 w-8 text-orange-600" />
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
         {freelancers.length === 0 ? (
-          <Card className="bg-gradient-card border-white/10">
+          <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-white/20 dark:border-slate-700/50 shadow-xl">
             <CardContent className="flex flex-col items-center justify-center py-16">
-              <DollarSign className="w-16 h-16 text-muted-foreground mb-4" />
+              <DollarSign className="w-16 h-16 text-slate-400 mb-4" />
               <h3 className="text-xl font-semibold mb-2">No freelancers found</h3>
-              <p className="text-muted-foreground text-center mb-6">
+              <p className="text-slate-600 dark:text-slate-400 text-center mb-6">
                 Freelancer financial data will appear here when you have active projects with accepted offers.
               </p>
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            {/* Freelancers List */}
-            <Card className="bg-gradient-card border-white/10">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Users className="w-5 h-5" />
-                  Freelancers
-                </CardTitle>
-                <CardDescription>Select a freelancer to view details</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {freelancers.map((freelancer) => (
-                    <div
-                      key={freelancer.freelancerId}
-                      className={`p-4 rounded-lg cursor-pointer transition-all duration-200 ${
-                        selectedFreelancer?.freelancerId === freelancer.freelancerId 
-                          ? 'bg-primary/10 border border-primary/20 scale-[1.02]' 
-                          : 'hover:bg-muted/20 hover:scale-[1.01]'
-                      }`}
-                      onClick={() => setSelectedFreelancer(freelancer)}
-                    >
-                      <div className="flex items-center gap-3 mb-3">
-                        <Avatar className="w-10 h-10">
-                          <AvatarImage src={freelancer.freelancerAvatar} />
-                          <AvatarFallback>
-                            {freelancer.freelancerName.split(' ').map(n => n[0]).join('').toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div className="flex-1 min-w-0">
-                          <h4 className="font-medium text-sm truncate">{freelancer.freelancerName}</h4>
-                          <p className="text-xs text-muted-foreground truncate">{freelancer.freelancerEmail}</p>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+            {/* Left Sidebar - Freelancer Card & Summary */}
+            <div className="lg:col-span-4 space-y-6">
+              {/* Freelancer Card */}
+              <Card className="bg-gradient-to-br from-purple-600 to-purple-800 text-white shadow-2xl overflow-hidden">
+                <CardContent className="p-6">
+                  {selectedFreelancer && (
+                    <>
+                      <div className="flex items-center justify-between mb-6">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="w-12 h-12 ring-2 ring-white/30">
+                            <AvatarImage src={selectedFreelancer.freelancerAvatar} />
+                            <AvatarFallback className="bg-white/20 text-white">
+                              {selectedFreelancer.freelancerName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <h3 className="font-semibold text-white">{selectedFreelancer.freelancerName}</h3>
+                            <p className="text-purple-100 text-sm">{selectedFreelancer.freelancerEmail}</p>
+                          </div>
                         </div>
                       </div>
-                      <div className="space-y-2">
-                        <div className="flex justify-between text-xs">
-                          <span className="text-green-600">Earned: ${freelancer.totalEarned.toLocaleString()}</span>
-                          <span className="text-blue-600">Pending: ${freelancer.totalPending.toLocaleString()}</span>
-                        </div>
-                        <div className="flex justify-between text-xs text-muted-foreground">
-                          <span>{freelancer.projectCount} projects</span>
-                          <span>{freelancer.projects.filter(p => p.paymentStatus === 'PAID').length} paid</span>
+                      
+                      <div className="bg-white/10 rounded-lg p-4 mb-4">
+                        <div className="text-center">
+                          <p className="text-purple-100 text-sm mb-1">Total Balance</p>
+                          <p className="text-3xl font-bold text-white">
+                            ${(selectedFreelancer.totalEarned + selectedFreelancer.totalPending).toLocaleString()}
+                          </p>
+                          <p className="text-purple-200 text-sm">USD</p>
                         </div>
                       </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
 
-            {/* Freelancer Details */}
-            <Card className="lg:col-span-2 bg-gradient-card border-white/10">
-              {selectedFreelancer ? (
-                <>
-                  <CardHeader className="border-b border-white/10">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-4">
-                        <Avatar className="w-12 h-12">
-                          <AvatarImage src={selectedFreelancer.freelancerAvatar} />
-                          <AvatarFallback>
-                            {selectedFreelancer.freelancerName.split(' ').map(n => n[0]).join('').toUpperCase()}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <CardTitle>{selectedFreelancer.freelancerName}</CardTitle>
-                          <CardDescription>{selectedFreelancer.freelancerEmail}</CardDescription>
-                        </div>
-                      </div>
                       <div className="flex gap-2">
                         <Dialog open={isGiftDialogOpen} onOpenChange={setIsGiftDialogOpen}>
                           <DialogTrigger asChild>
-                            <Button variant="outline" size="sm">
-                              <Gift className="w-4 h-4 mr-2" />
-                              Send Gift
+                            <Button variant="secondary" size="sm" className="flex-1 bg-white/20 hover:bg-white/30 text-white border-0">
+                              <Send className="w-4 h-4 mr-1" />
+                              Send
                             </Button>
                           </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Send Gift or Bonus</DialogTitle>
-                              <DialogDescription>
-                                Send a bonus payment or gift to {selectedFreelancer.freelancerName}
-                              </DialogDescription>
-                            </DialogHeader>
-                            <form onSubmit={handleGiveGift}>
-                              <div className="grid gap-4 py-4">
-                                <div className="grid gap-2">
-                                  <Label>Type</Label>
-                                  <div className="flex gap-2">
-                                    <Button
-                                      type="button"
-                                      variant={giftForm.type === 'bonus' ? 'default' : 'outline'}
-                                      size="sm"
-                                      onClick={() => setGiftForm(prev => ({ ...prev, type: 'bonus' }))}
-                                    >
-                                      💰 Bonus
-                                    </Button>
-                                    <Button
-                                      type="button"
-                                      variant={giftForm.type === 'gift' ? 'default' : 'outline'}
-                                      size="sm"
-                                      onClick={() => setGiftForm(prev => ({ ...prev, type: 'gift' }))}
-                                    >
-                                      🎁 Gift
-                                    </Button>
-                                  </div>
-                                </div>
-                                <div className="grid gap-2">
-                                  <Label htmlFor="gift-amount">Amount *</Label>
-                                  <Input
-                                    id="gift-amount"
-                                    type="number"
-                                    value={giftForm.amount}
-                                    onChange={(e) => setGiftForm(prev => ({ ...prev, amount: e.target.value }))}
-                                    placeholder="0.00"
-                                    min="0"
-                                    step="0.01"
-                                    required
-                                  />
-                                </div>
-                                <div className="grid gap-2">
-                                  <Label htmlFor="gift-description">Message *</Label>
-                                  <Textarea
-                                    id="gift-description"
-                                    value={giftForm.description}
-                                    onChange={(e) => setGiftForm(prev => ({ ...prev, description: e.target.value }))}
-                                    placeholder="Add a message for the gift/bonus"
-                                    required
-                                  />
-                                </div>
-                              </div>
-                              <DialogFooter>
-                                <Button type="button" variant="outline" onClick={() => setIsGiftDialogOpen(false)}>
-                                  Cancel
-                                </Button>
-                                <Button type="submit">
-                                  <Send className="w-4 h-4 mr-2" />
-                                  Send {giftForm.type === 'gift' ? 'Gift' : 'Bonus'}
-                                </Button>
-                              </DialogFooter>
-                            </form>
-                          </DialogContent>
                         </Dialog>
+                        <Button variant="secondary" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-0">
+                          Request
+                        </Button>
+                        <Button variant="secondary" size="sm" className="bg-white/20 hover:bg-white/30 text-white border-0">
+                          Top Up
+                        </Button>
                       </div>
-                    </div>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Summary */}
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                      <Card className="bg-muted/10">
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2">
-                            <TrendingUp className="w-5 h-5 text-green-500" />
-                            <div>
-                              <p className="text-sm text-muted-foreground">Total Earned</p>
-                              <p className="text-xl font-bold">${selectedFreelancer.totalEarned.toLocaleString()}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card className="bg-muted/10">
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2">
-                            <DollarSign className="w-5 h-5 text-blue-500" />
-                            <div>
-                              <p className="text-sm text-muted-foreground">Pending</p>
-                              <p className="text-xl font-bold">${selectedFreelancer.totalPending.toLocaleString()}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                      <Card className="bg-muted/10">
-                        <CardContent className="p-4">
-                          <div className="flex items-center gap-2">
-                            <Calendar className="w-5 h-5 text-purple-500" />
-                            <div>
-                              <p className="text-sm text-muted-foreground">Projects</p>
-                              <p className="text-xl font-bold">{selectedFreelancer.projectCount}</p>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </div>
+                    </>
+                  )}
+                </CardContent>
+              </Card>
 
-                    {/* Projects List */}
-                    <div>
-                      <h4 className="font-semibold mb-4">Project Financials</h4>
-                      <div className="space-y-3">
-                        {selectedFreelancer.projects.map((project) => (
-                          <Card key={project.id} className="bg-muted/10">
-                            <CardContent className="p-4">
-                              <div className="flex items-start justify-between mb-2">
-                                <h5 className="font-medium">{project.projectTitle}</h5>
-                                <Badge className={getStatusColor(project.paymentStatus)}>
+              {/* Quick Stats */}
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-white/20 dark:border-slate-700/50">
+                  <CardContent className="p-4">
+                    <div className="text-center">
+                      <TrendingUp className="w-6 h-6 text-green-600 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-green-600">${totalStats.totalPaid.toLocaleString()}</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">Total Paid</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-white/20 dark:border-slate-700/50">
+                  <CardContent className="p-4">
+                    <div className="text-center">
+                      <DollarSign className="w-6 h-6 text-blue-600 mx-auto mb-2" />
+                      <p className="text-2xl font-bold text-blue-600">${totalStats.totalPending.toLocaleString()}</p>
+                      <p className="text-xs text-slate-600 dark:text-slate-400">Pending</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {/* Recent Contacts */}
+              <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-white/20 dark:border-slate-700/50">
+                <CardHeader className="pb-3">
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-sm font-medium">Recent Contacts</CardTitle>
+                    <Button variant="ghost" size="sm" className="text-xs text-purple-600 hover:text-purple-700">
+                      All Contacts
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="flex gap-2">
+                    <div className="flex items-center justify-center w-12 h-12 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-600 text-slate-400 hover:border-purple-500 hover:text-purple-500 cursor-pointer transition-colors">
+                      <Plus className="w-4 h-4" />
+                    </div>
+                    {freelancers.slice(0, 6).map((freelancer) => (
+                      <div
+                        key={freelancer.freelancerId}
+                        className={`cursor-pointer transition-all duration-200 ${
+                          selectedFreelancer?.freelancerId === freelancer.freelancerId 
+                            ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' 
+                            : 'hover:scale-110'
+                        }`}
+                        onClick={() => setSelectedFreelancer(freelancer)}
+                      >
+                        <Avatar className="w-12 h-12">
+                          <AvatarImage src={freelancer.freelancerAvatar} />
+                          <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-xs">
+                            {freelancer.freelancerName.split(' ').map(n => n[0]).join('').toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                    ))}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Main Content Area */}
+            <div className="lg:col-span-8">
+              <Card className="bg-white/70 dark:bg-slate-900/70 backdrop-blur-sm border-white/20 dark:border-slate-700/50 shadow-xl">
+                {selectedFreelancer ? (
+                  <>
+                    <CardHeader className="border-b border-slate-200/50 dark:border-slate-700/50 pb-6">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <CardTitle className="text-xl text-slate-800 dark:text-white mb-1">
+                            Transactions History
+                          </CardTitle>
+                          <CardDescription className="text-slate-600 dark:text-slate-400">
+                            Recent financial activities and project payments
+                          </CardDescription>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button variant="outline" size="sm" className="bg-white/50 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700">
+                            Select Date Range
+                          </Button>
+                          <Button variant="outline" size="sm">
+                            <ArrowUp className="w-3 h-3 mr-1" />
+                          </Button>
+                        </div>
+                      </div>
+                    </CardHeader>
+                    
+                    <CardContent className="p-6">
+                      <div className="space-y-4">
+                        {selectedFreelancer.projects.map((project, index) => (
+                          <div key={project.id} className="flex items-center justify-between p-4 rounded-xl bg-slate-50/50 dark:bg-slate-800/50 hover:bg-slate-100/50 dark:hover:bg-slate-700/50 transition-colors border border-slate-200/50 dark:border-slate-700/50">
+                            <div className="flex items-center gap-4">
+                              <div className="w-10 h-10 rounded-full bg-gradient-to-br from-purple-500 to-blue-500 flex items-center justify-center text-white font-semibold text-sm">
+                                {project.projectTitle.substring(0, 2).toUpperCase()}
+                              </div>
+                              <div>
+                                <h4 className="font-medium text-slate-800 dark:text-white">{project.projectTitle}</h4>
+                                <p className="text-sm text-slate-600 dark:text-slate-400">
+                                  {project.paymentStatus === 'PAID' ? 'Payment of Project' : 'Received: Your Payment'}
+                                </p>
+                                <p className="text-xs text-slate-500 dark:text-slate-500">
+                                  {format(new Date(project.createdAt), 'EEE. dd MMMM yyyy')} • {format(new Date(project.createdAt), 'h:mm a')}
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className={`font-semibold ${
+                                project.paymentStatus === 'PAID' 
+                                  ? 'text-green-600' 
+                                  : 'text-blue-600'
+                              }`}>
+                                USD {project.amountPaid > 0 ? project.amountPaid.toLocaleString() : project.acceptedPrice.toLocaleString()}
+                              </p>
+                              <div className="flex items-center gap-2 justify-end mt-1">
+                                <Badge className={`text-xs ${getStatusColor(project.paymentStatus)}`}>
                                   {project.paymentStatus}
                                 </Badge>
-                              </div>
-                              <div className="grid grid-cols-2 gap-4 text-sm">
-                                <div>
-                                  <p className="text-muted-foreground">Total Value</p>
-                                  <p className="font-medium">${project.acceptedPrice.toLocaleString()}</p>
-                                </div>
-                                <div>
-                                  <p className="text-muted-foreground">Paid</p>
-                                  <p className="font-medium">${project.amountPaid.toLocaleString()}</p>
-                                </div>
-                              </div>
-                              <div className="mt-3">
-                                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                                  <span>Progress</span>
-                                  <span>{Math.round((project.amountPaid / project.acceptedPrice) * 100)}%</span>
-                                </div>
-                                <Progress 
-                                  value={(project.amountPaid / project.acceptedPrice) * 100} 
-                                  className="h-2"
-                                />
-                              </div>
-                              <div className="mt-2 flex justify-between items-center">
-                                <p className="text-xs text-muted-foreground">
-                                  Created: {format(new Date(project.createdAt), 'MMM dd, yyyy')}
-                                </p>
                                 <Button
                                   variant="ghost"
                                   size="sm"
+                                  className="h-6 w-6 p-0"
                                   onClick={() => navigate(`/project/${project.projectId}`)}
                                 >
-                                  <Eye className="w-4 h-4 mr-1" />
-                                  View
+                                  <Eye className="w-3 h-3" />
                                 </Button>
                               </div>
-                            </CardContent>
-                          </Card>
+                            </div>
+                          </div>
                         ))}
+                        
+                        {selectedFreelancer.projects.length === 0 && (
+                          <div className="text-center py-8">
+                            <DollarSign className="w-12 h-12 text-slate-400 mx-auto mb-3" />
+                            <p className="text-slate-600 dark:text-slate-400">No transactions yet</p>
+                          </div>
+                        )}
                       </div>
-                    </div>
+                    </CardContent>
+                  </>
+                ) : (
+                  <CardContent className="flex flex-col items-center justify-center py-16">
+                    <Users className="w-16 h-16 text-slate-400 mb-4" />
+                    <h3 className="text-xl font-semibold mb-2 text-slate-800 dark:text-white">Select a freelancer</h3>
+                    <p className="text-slate-600 dark:text-slate-400 text-center">
+                      Choose a freelancer from the list to view their financial details and project history.
+                    </p>
                   </CardContent>
-                </>
-              ) : (
-                <CardContent className="flex flex-col items-center justify-center py-16">
-                  <Users className="w-16 h-16 text-muted-foreground mb-4" />
-                  <h3 className="text-xl font-semibold mb-2">Select a freelancer</h3>
-                  <p className="text-muted-foreground text-center">
-                    Choose a freelancer from the list to view their financial details and project history.
-                  </p>
-                </CardContent>
-              )}
-            </Card>
+                )}
+              </Card>
+            </div>
           </div>
         )}
+
+        {/* Send Gift Dialog */}
+        <Dialog open={isGiftDialogOpen} onOpenChange={setIsGiftDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <form onSubmit={handleGiveGift}>
+              <DialogHeader>
+                <DialogTitle>Send Gift or Bonus</DialogTitle>
+                <DialogDescription>
+                  Send a gift or bonus to {selectedFreelancer?.freelancerName}
+                </DialogDescription>
+              </DialogHeader>
+              <div className="grid gap-4 py-4">
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="type" className="text-right">
+                    Type
+                  </Label>
+                  <select
+                    id="type"
+                    className="col-span-3 px-3 py-2 border rounded-md bg-background"
+                    value={giftForm.type}
+                    onChange={(e) => setGiftForm(prev => ({ ...prev, type: e.target.value as 'bonus' | 'gift' }))}
+                  >
+                    <option value="bonus">Bonus</option>
+                    <option value="gift">Gift</option>
+                  </select>
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="amount" className="text-right">
+                    Amount
+                  </Label>
+                  <Input
+                    id="amount"
+                    type="number"
+                    placeholder="0.00"
+                    className="col-span-3"
+                    value={giftForm.amount}
+                    onChange={(e) => setGiftForm(prev => ({ ...prev, amount: e.target.value }))}
+                    required
+                  />
+                </div>
+                <div className="grid grid-cols-4 items-center gap-4">
+                  <Label htmlFor="description" className="text-right">
+                    Description
+                  </Label>
+                  <Textarea
+                    id="description"
+                    placeholder="Enter a message..."
+                    className="col-span-3"
+                    value={giftForm.description}
+                    onChange={(e) => setGiftForm(prev => ({ ...prev, description: e.target.value }))}
+                    required
+                  />
+                </div>
+              </div>
+              <DialogFooter>
+                <Button type="submit">Send {giftForm.type}</Button>
+              </DialogFooter>
+            </form>
+          </DialogContent>
+        </Dialog>
       </div>
     </div>
   );
