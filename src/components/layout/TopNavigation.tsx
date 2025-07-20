@@ -45,7 +45,7 @@ export function TopNavigation({ className, onMenuClick, userProfile }: TopNaviga
           <div className="w-6 h-6 bg-primary rounded flex items-center justify-center">
             <span className="text-primary-foreground text-xs font-semibold">P</span>
           </div>
-          <span className="font-medium">ProjectFlow</span>
+          <span className="font-medium">DOTIQ PMT</span>
           <ChevronDown className="w-4 h-4" />
         </Button>
 

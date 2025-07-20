@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -67,34 +68,35 @@ const Finances = () => {
       navigate('/auth');
       return;
     }
-    fetchUserProfile();
-    fetchFreelancersFinancials();
-  }, [user, navigate]);
 
-  const fetchUserProfile = async () => {
-    if (!user) return;
-    
-    try {
-      const { data, error } = await supabase
-        .from('User')
-        .select('role')
-        .eq('id', user.id)
-        .single();
-      
-      if (error) throw error;
-      setUserProfile(data);
-    } catch (error: any) {
-      toast({
-        title: "Error loading profile",
-        description: error.message,
-        variant: "destructive",
-      });
-    }
-  };
+    const fetchProfile = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('User')
+          .select('role')
+          .eq('id', user.id)
+          .single();
+
+        if (error) throw error;
+        setUserProfile(data);
+        
+        // Fetch financial data after profile is loaded
+        await fetchFreelancersFinancials();
+      } catch (error: any) {
+        toast({
+          title: "Error loading profile",
+          description: error.message,
+          variant: "destructive",
+        });
+      }
+    };
+
+    fetchProfile();
+  }, [user, navigate, toast]);
 
   const fetchFreelancersFinancials = async () => {
     if (!user) return;
-    
+
     try {
       // Get user profile first
       const { data: profile } = await supabase
@@ -135,7 +137,7 @@ const Finances = () => {
 
       // Get freelancer details
       const freelancerIds = [...new Set(projectsData?.flatMap(p => p.Offer.map(o => o.freelancerId)) || [])];
-      
+
       const { data: freelancersData, error: freelancersError } = await supabase
         .from('User')
         .select('id, name, email, avatar')
@@ -145,7 +147,7 @@ const Finances = () => {
 
       // Process data to group by freelancer
       const freelancerMap = new Map<string, FreelancerFinancial>();
-      
+
       projectsData?.forEach(project => {
         project.Offer.forEach(offer => {
           if (offer.status === 'ACCEPTED') {
@@ -156,7 +158,7 @@ const Finances = () => {
             if (!financial) return;
 
             const key = offer.freelancerId;
-            
+
             if (!freelancerMap.has(key)) {
               freelancerMap.set(key, {
                 freelancerId: offer.freelancerId,
@@ -219,7 +221,7 @@ const Finances = () => {
 
     try {
       const updateId = crypto.randomUUID();
-      
+
       const updateData = {
         id: updateId,
         financialId: selectedFreelancer.projects[0]?.id || '',
@@ -295,7 +297,7 @@ const Finances = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50 dark:from-slate-950 dark:via-slate-900 dark:to-purple-950">
+    <MainLayout userProfile={userProfile}>
       <div className="max-w-7xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -346,7 +348,7 @@ const Finances = () => {
                           </div>
                         </div>
                       </div>
-                      
+
                       <div className="bg-white/10 rounded-lg p-4 mb-4">
                         <div className="text-center">
                           <p className="text-purple-100 text-sm mb-1">Total Balance</p>
@@ -418,11 +420,10 @@ const Finances = () => {
                     {freelancers.slice(0, 6).map((freelancer) => (
                       <div
                         key={freelancer.freelancerId}
-                        className={`cursor-pointer transition-all duration-200 ${
-                          selectedFreelancer?.freelancerId === freelancer.freelancerId 
-                            ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900' 
+                        className={`cursor-pointer transition-all duration-200 ${selectedFreelancer?.freelancerId === freelancer.freelancerId
+                            ? 'ring-2 ring-purple-500 ring-offset-2 ring-offset-white dark:ring-offset-slate-900'
                             : 'hover:scale-110'
-                        }`}
+                          }`}
                         onClick={() => setSelectedFreelancer(freelancer)}
                       >
                         <Avatar className="w-12 h-12">
@@ -463,7 +464,7 @@ const Finances = () => {
                         </div>
                       </div>
                     </CardHeader>
-                    
+
                     <CardContent className="p-6">
                       <div className="space-y-4">
                         {selectedFreelancer.projects.map((project, index) => (
@@ -483,11 +484,10 @@ const Finances = () => {
                               </div>
                             </div>
                             <div className="text-right">
-                              <p className={`font-semibold ${
-                                project.paymentStatus === 'PAID' 
-                                  ? 'text-green-600' 
+                              <p className={`font-semibold ${project.paymentStatus === 'PAID'
+                                  ? 'text-green-600'
                                   : 'text-blue-600'
-                              }`}>
+                                }`}>
                                 USD {project.amountPaid > 0 ? project.amountPaid.toLocaleString() : project.acceptedPrice.toLocaleString()}
                               </p>
                               <div className="flex items-center gap-2 justify-end mt-1">
@@ -506,7 +506,7 @@ const Finances = () => {
                             </div>
                           </div>
                         ))}
-                        
+
                         {selectedFreelancer.projects.length === 0 && (
                           <div className="text-center py-8">
                             <DollarSign className="w-12 h-12 text-slate-400 mx-auto mb-3" />
@@ -590,7 +590,7 @@ const Finances = () => {
           </DialogContent>
         </Dialog>
       </div>
-    </div>
+    </MainLayout >
   );
 };
 

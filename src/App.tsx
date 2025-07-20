@@ -18,6 +18,7 @@ import Messages from "./pages/Messages";
 import Finances from "./pages/Finances";
 import Categories from "./pages/Categories";
 import Freelancers from "./pages/Freelancers";
+import Settings from "./pages/Settings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -44,6 +45,7 @@ const App = () => (
                 <Route path="/finances" element={<Finances />} />
                 <Route path="/categories" element={<Categories />} />
                 <Route path="/freelancers" element={<Freelancers />} />
+                <Route path="/settings" element={<Settings />} />
               </Route>
               {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
               <Route path="*" element={<NotFound />} />

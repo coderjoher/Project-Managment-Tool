@@ -2,11 +2,11 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { Button } from '@/components/ui/button';
-import { 
-  Users, 
-  Briefcase, 
-  MessageSquare, 
-  DollarSign, 
+import {
+  Users,
+  Briefcase,
+  MessageSquare,
+  DollarSign,
   FileText,
   LogOut,
   BarChart3,
@@ -49,7 +49,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className, onClose, userProfile }) =>
       { path: '/messages', label: 'Messages', icon: MessageSquare },
       { path: '/finances', label: 'Financials', icon: DollarSign },
     ];
-    
+
     // Add role-specific items
     if (userProfile?.role === 'FREELANCER') {
       // Add Accepted Projects for freelancers at index 2 (after Projects)
@@ -63,21 +63,21 @@ const Sidebar: React.FC<SidebarProps> = ({ className, onClose, userProfile }) =>
       baseItems.splice(4, 0, { path: '/freelancers', label: 'Freelancers', icon: Users });
       baseItems.splice(5, 0, { path: '/superadmin', label: 'Managers', icon: FileText });
     }
-    
+
     return baseItems;
   };
-  
+
   const navItems = getNavItems();
 
   return (
-    <div className={`w-60 bg-sidebar border-r border-sidebar-border flex flex-col ${className}`}>
+    <div className={`fixed top-0 left-0 w-60 h-full bg-sidebar border-r border-sidebar-border flex flex-col z-50 ${className}`}>
       {/* Header */}
       <div className="p-4 border-b border-sidebar-border">
         <div className="flex items-center gap-2">
           <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
             <span className="text-primary-foreground font-semibold text-sm">P</span>
           </div>
-          <span className="font-semibold text-text-primary">ProjectFlow</span>
+          <span className="font-semibold text-text-primary">DOTIQ PMT</span>
         </div>
       </div>
 
@@ -89,15 +89,15 @@ const Sidebar: React.FC<SidebarProps> = ({ className, onClose, userProfile }) =>
           {navItems.map((item) => {
             const Icon = item.icon;
             const active = isActive(item.path);
-            
+
             return (
               <button
                 key={item.path}
                 className={`sidebar-item w-full text-left ${
-                  active 
-                    ? 'text-primary bg-primary/10' 
-                    : 'text-text-secondary hover:text-text-primary'
-                }`}
+                  active
+                    ? 'bg-[hsl(var(--hover))] text-foreground font-medium'
+                    : 'text-muted-foreground hover:bg-[hsl(var(--hover))] hover:text-foreground'
+                  }`}
                 onClick={() => navigate(item.path)}
               >
                 <Icon className="w-4 h-4" />
@@ -109,7 +109,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className, onClose, userProfile }) =>
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-sidebar-border">
+      {/* <div className="p-4 border-t border-sidebar-border">
         <div className="flex items-center gap-3 mb-4">
           <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
             <span className="text-xs font-medium text-gray-600">
@@ -133,7 +133,7 @@ const Sidebar: React.FC<SidebarProps> = ({ className, onClose, userProfile }) =>
           <LogOut className="w-4 h-4" />
           <span>Sign Out</span>
         </Button>
-      </div>
+      </div> */}
     </div>
   );
 };

@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, Calendar, DollarSign, Link, CheckCircle, Clock, Eye } from 'lucide-react';
 import { format } from 'date-fns';
+import { MainLayout  } from '@/components/layout/MainLayout';
 
 interface Project {
   id: string;
@@ -139,22 +140,8 @@ const AcceptedProjects = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <MainLayout userProfile={userProfile}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="flex items-center justify-between mb-8">
-          <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
-            <div>
-              <h1 className="text-3xl font-bold">Accepted Projects</h1>
-              <p className="text-muted-foreground">
-                Projects where your offers have been accepted
-              </p>
-            </div>
-          </div>
-        </div>
 
         {acceptedOffers.length === 0 ? (
           <Card className="bg-gradient-card border-white/10">
@@ -252,7 +239,7 @@ const AcceptedProjects = () => {
           </div>
         )}
       </div>
-    </div>
+    </MainLayout>
   );
 };
 

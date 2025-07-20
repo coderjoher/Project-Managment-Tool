@@ -3,7 +3,6 @@ import {
   Plus, 
   Bell, 
   ChevronDown,
-  Menu,
   User,
   LogOut,
   Settings
@@ -23,7 +22,6 @@ import { useNavigate } from "react-router-dom";
 
 interface NavbarProps {
   className?: string;
-  onMenuClick?: () => void;
   userProfile: {
     id: string;
     name: string | null;
@@ -32,7 +30,7 @@ interface NavbarProps {
   } | null;
 }
 
-export function Navbar({ className, onMenuClick, userProfile }: NavbarProps) {
+export function Navbar({ className, userProfile }: NavbarProps) {
   const { signOut } = useAuth();
   const navigate = useNavigate();
 
@@ -42,32 +40,22 @@ export function Navbar({ className, onMenuClick, userProfile }: NavbarProps) {
   };
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 bg-background border-b border-border h-16 flex items-center px-4 md:px-6 z-50 ${className}`}>
+    <nav className={`fixed top-0 left-60 right-0 bg-background border-b border-border h-16 flex items-center px-4 md:px-6 z-40 ${className}`}>
       {/* Left Section */}
       <div className="flex items-center gap-2 md:gap-4 flex-1">
-        {/* Mobile Menu Button */}
-        <Button
-          variant="ghost"
-          size="sm"
-          className="lg:hidden p-2"
-          onClick={onMenuClick}
-        >
-          <Menu className="w-5 h-5" />
-        </Button>
-
-        {/* Logo */}
+        {/* Workspace Dropdown */}
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
-            <span className="text-primary-foreground font-semibold text-sm">P</span>
-          </div>
-          <span className="font-semibold text-text-primary hidden sm:block">ProjectFlow</span>
+          <Button variant="ghost" className="gap-2 text-sm">
+            <span>Workspace</span>
+            <ChevronDown className="w-4 h-4" />
+          </Button>
         </div>
 
         {/* Search */}
-        <div className="relative hidden md:block flex-1 max-w-96 ml-8">
+        <div className="relative flex-1 max-w-md ml-4">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-text-muted" />
           <Input 
-            placeholder="Search projects, offers, messages..." 
+            placeholder="Search tasks, docs, people..." 
             className="pl-10 bg-muted/50 border-border w-full"
           />
         </div>
@@ -75,19 +63,6 @@ export function Navbar({ className, onMenuClick, userProfile }: NavbarProps) {
 
       {/* Right Section */}
       <div className="flex items-center gap-1 md:gap-3">
-        {/* Mobile Search Button */}
-        <Button variant="ghost" size="sm" className="md:hidden p-2">
-          <Search className="w-5 h-5" />
-        </Button>
-
-        {/* New Project Button */}
-        <Button 
-          className="bg-primary hover:bg-primary-hover text-primary-foreground gap-2"
-          onClick={() => navigate('/projects')}
-        >
-          <Plus className="w-4 h-4" />
-          <span className="hidden sm:inline">New Project</span>
-        </Button>
 
         {/* Theme Toggle */}
         <SimpleThemeToggle />
@@ -95,9 +70,6 @@ export function Navbar({ className, onMenuClick, userProfile }: NavbarProps) {
         {/* Notifications */}
         <Button variant="ghost" size="sm" className="h-10 w-10 p-0 relative">
           <Bell className="w-4 h-4" />
-          <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 rounded-full text-xs text-white flex items-center justify-center">
-            3
-          </span>
         </Button>
 
         {/* User Dropdown */}
@@ -105,7 +77,7 @@ export function Navbar({ className, onMenuClick, userProfile }: NavbarProps) {
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" className="nav-button gap-2">
               <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center">
-                <span className="text-xs font-medium text-gray-600">
+                <span className="text-sm font-medium text-gray-600">
                   {userProfile?.name ? userProfile.name.charAt(0).toUpperCase() : userProfile?.email?.charAt(0).toUpperCase()}
                 </span>
               </div>
@@ -139,7 +111,7 @@ export function Navbar({ className, onMenuClick, userProfile }: NavbarProps) {
               Projects
             </DropdownMenuItem>
             <DropdownMenuSeparator />
-            <DropdownMenuItem>
+            <DropdownMenuItem onClick={() => navigate('/settings')}>
               <Settings className="w-4 h-4 mr-2" />
               Settings
             </DropdownMenuItem>

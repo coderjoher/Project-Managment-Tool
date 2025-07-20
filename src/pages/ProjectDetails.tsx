@@ -17,6 +17,7 @@ import CustomerDetails from '@/components/project/CustomerDetails';
 import ProjectFinancial from '@/components/project/ProjectFinancial';
 import ProjectLog from '@/components/project/ProjectLog';
 import { ProjectChat } from '@/components/project/ProjectChat';
+import { MainLayout } from '@/components/layout/MainLayout';
 
 interface Project {
   id: string;
@@ -89,14 +90,14 @@ const ProjectDetails = () => {
 
   const fetchUserProfile = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('User')
         .select('*')
         .eq('id', user.id)
         .single();
-      
+
       if (error) throw error;
       setUserProfile(data);
     } catch (error: any) {
@@ -115,15 +116,15 @@ const ProjectDetails = () => {
         .select('*')
         .eq('id', projectId)
         .single();
-      
+
       if (error) throw error;
       setProject(data);
-      
+
       // Fetch category statuses if project has a category
       if (data.categoryId) {
         fetchCategoryStatuses(data.categoryId);
       }
-      
+
       // Set form data for editing
       setEditFormData({
         title: data.title,
@@ -162,7 +163,7 @@ const ProjectDetails = () => {
 
   const checkAcceptedOffer = async () => {
     if (!user || !projectId || !userProfile?.role) return;
-    
+
     // Only check for freelancers
     if (userProfile.role !== 'FREELANCER') {
       setHasAcceptedOffer(false);
@@ -363,7 +364,7 @@ const ProjectDetails = () => {
   const currentStatus = categoryStatuses.find(s => s.id === project.statusId);
 
   return (
-    <div className="min-h-screen bg-background">
+    <MainLayout userProfile={userProfile}>
       <div className="max-w-4xl mx-auto px-6 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
@@ -371,7 +372,7 @@ const ProjectDetails = () => {
             <ArrowLeft className="w-4 h-4" />
             Back to Projects
           </Button>
-          
+
           {canEdit && (
             <div className="flex gap-2">
               <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
@@ -455,7 +456,7 @@ const ProjectDetails = () => {
                   </div>
                 </DialogContent>
               </Dialog>
-              
+
               <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
                 <DialogTrigger asChild>
                   <Button variant="destructive" size="sm" className="gap-2">
@@ -490,13 +491,13 @@ const ProjectDetails = () => {
             <h1 className="text-3xl font-bold leading-tight">{project.title}</h1>
             <div className="flex items-center gap-3">
               {currentStatus ? (
-                <Badge 
-                  variant="outline" 
+                <Badge
+                  variant="outline"
                   className="px-3 py-1"
-                  style={{ 
-                    backgroundColor: currentStatus.color + '10', 
+                  style={{
+                    backgroundColor: currentStatus.color + '10',
                     borderColor: currentStatus.color + '40',
-                    color: currentStatus.color 
+                    color: currentStatus.color
                   }}
                 >
                   {currentStatus.title}
@@ -506,7 +507,7 @@ const ProjectDetails = () => {
                   {project.status.replace('_', ' ')}
                 </Badge>
               )}
-              
+
               {/* Status Change Dropdown */}
               {canChangeStatus && categoryStatuses.length > 0 && (
                 <Select value={project.statusId || ''} onValueChange={handleChangeStatus}>
@@ -517,8 +518,8 @@ const ProjectDetails = () => {
                     {categoryStatuses.map((status) => (
                       <SelectItem key={status.id} value={status.id}>
                         <div className="flex items-center gap-2">
-                          <div 
-                            className="w-2 h-2 rounded-full" 
+                          <div
+                            className="w-2 h-2 rounded-full"
                             style={{ backgroundColor: status.color }}
                           />
                           {status.title}
@@ -557,11 +558,11 @@ const ProjectDetails = () => {
               )}
             </div>
           </div>
-          
+
           <p className="text-lg text-muted-foreground leading-relaxed mb-6">
             {project.description}
           </p>
-          
+
           {/* Project Info Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-6 py-6 border-y border-border">
             {project.budget && (
@@ -572,7 +573,7 @@ const ProjectDetails = () => {
                 <div className="text-sm text-muted-foreground">Budget</div>
               </div>
             )}
-            
+
             {project.deadline && (
               <div className="text-center">
                 <div className="text-2xl font-bold text-foreground">
@@ -581,19 +582,19 @@ const ProjectDetails = () => {
                 <div className="text-sm text-muted-foreground">Deadline</div>
               </div>
             )}
-            
+
             <div className="text-center">
               <div className="text-2xl font-bold text-foreground">
                 {format(new Date(project.createdAt), 'MMM dd')}
               </div>
               <div className="text-sm text-muted-foreground">Created</div>
             </div>
-            
+
             {project.driveLink && (
               <div className="text-center">
-                <a 
-                  href={project.driveLink} 
-                  target="_blank" 
+                <a
+                  href={project.driveLink}
+                  target="_blank"
                   rel="noopener noreferrer"
                   className="inline-flex items-center gap-1 text-primary hover:underline font-medium"
                 >
@@ -657,7 +658,7 @@ const ProjectDetails = () => {
           </div>
         </div>
       </div>
-    </div>
+    </MainLayout>
   );
 };
 

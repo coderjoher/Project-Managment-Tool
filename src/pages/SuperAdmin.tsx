@@ -8,6 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, Copy, Plus, Check, User } from 'lucide-react';
+import { MainLayout } from '@/components/layout/MainLayout';
 
 interface UserProfile {
   id: string;
@@ -52,7 +53,7 @@ const SuperAdmin = () => {
         .select('*')
         .eq('id', user.id)
         .single();
-      
+
       if (error) throw error;
       setUserProfile(data);
 
@@ -101,7 +102,7 @@ const SuperAdmin = () => {
     try {
       // Generate a unique token
       const token = crypto.randomUUID();
-      
+
       // Set expiry to 7 days from now
       const expiresAt = new Date();
       expiresAt.setDate(expiresAt.getDate() + 7);
@@ -201,15 +202,11 @@ const SuperAdmin = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <MainLayout userProfile={userProfile}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
             <div>
               <h1 className="text-3xl font-bold">SuperAdmin</h1>
               <p className="text-muted-foreground">Manage manager signup links</p>
@@ -313,13 +310,13 @@ const SuperAdmin = () => {
           {/* Info Alert */}
           <Alert>
             <AlertDescription>
-              These links can be used once to create a new manager account. 
+              These links can be used once to create a new manager account.
               They expire after 7 days or when used.
             </AlertDescription>
           </Alert>
         </div>
       </div>
-    </div>
+    </MainLayout>
   );
 };
 

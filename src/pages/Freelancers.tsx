@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { MainLayout } from '@/components/layout/MainLayout';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -270,15 +271,12 @@ const Freelancers = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <MainLayout userProfile={userProfile}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
+            
             <div>
               <h1 className="text-3xl font-bold">Freelancers</h1>
               <p className="text-muted-foreground">Manage and view all freelancer accounts</p>
@@ -530,7 +528,7 @@ const Freelancers = () => {
           </div>
         )}
       </div>
-    </div>
+    </MainLayout>
   );
 };
 

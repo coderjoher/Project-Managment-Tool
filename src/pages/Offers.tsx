@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { ArrowLeft, FileText, DollarSign, Clock, Plus, CheckCircle, XCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { MainLayout } from '@/components/layout/MainLayout';
 
 interface Offer {
   id: string;
@@ -71,14 +72,14 @@ const Offers = () => {
 
   const fetchUserProfile = async () => {
     if (!user) return;
-    
+
     try {
       const { data, error } = await supabase
         .from('User')
         .select('role')
         .eq('id', user.id)
         .single();
-      
+
       if (error) throw error;
       setUserProfile(data);
     } catch (error: any) {
@@ -92,7 +93,7 @@ const Offers = () => {
 
   const fetchOffers = async () => {
     if (!user) return;
-    
+
     try {
       let query = supabase.from('Offer').select(`
         *,
@@ -114,7 +115,7 @@ const Offers = () => {
       }
 
       const { data, error } = await query.order('createdAt', { ascending: false });
-      
+
       if (error) throw error;
       setOffers(data || []);
     } catch (error: any) {
@@ -135,7 +136,7 @@ const Offers = () => {
         .select('id, title, status')
         .eq('status', 'OPEN')
         .order('createdAt', { ascending: false });
-      
+
       if (error) throw error;
       setProjects(data || []);
     } catch (error: any) {
@@ -150,7 +151,7 @@ const Offers = () => {
     try {
       // Generate a UUID for the offer
       const offerId = crypto.randomUUID();
-      
+
       const offerData = {
         id: offerId,
         projectId: formData.projectId,
@@ -212,7 +213,7 @@ const Offers = () => {
         // Update the project status to IN_PROGRESS
         const { error: updateProjectError } = await supabase
           .from('Project')
-          .update({ 
+          .update({
             status: 'IN_PROGRESS',
             updatedAt: new Date().toISOString()
           })
@@ -223,7 +224,7 @@ const Offers = () => {
         // Create a financial record for the accepted offer
         const financialId = crypto.randomUUID();
         const currentTime = new Date().toISOString();
-        
+
         const { error: createFinancialError } = await supabase
           .from('Financial')
           .insert({
@@ -242,7 +243,7 @@ const Offers = () => {
 
       toast({
         title: `Offer ${status.toLowerCase()}`,
-        description: status === 'ACCEPTED' 
+        description: status === 'ACCEPTED'
           ? `The offer has been accepted and the project is now in progress`
           : `The offer has been ${status.toLowerCase()}`,
       });
@@ -280,14 +281,11 @@ const Offers = () => {
   const isFreelancer = userProfile?.role === 'FREELANCER';
 
   return (
-    <div className="min-h-screen bg-background">
+    <MainLayout userProfile={userProfile}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex items-center justify-between mb-8">
           <div className="flex items-center gap-4">
-            <Button variant="ghost" onClick={() => navigate('/dashboard')}>
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Dashboard
-            </Button>
+            
             <div>
               <h1 className="text-3xl font-bold">Offers</h1>
               <p className="text-muted-foreground">
@@ -295,7 +293,7 @@ const Offers = () => {
               </p>
             </div>
           </div>
-          
+
           {isFreelancer && (
             <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
               <DialogTrigger asChild>
@@ -384,7 +382,7 @@ const Offers = () => {
               <FileText className="w-16 h-16 text-muted-foreground mb-4" />
               <h3 className="text-xl font-semibold mb-2">No offers found</h3>
               <p className="text-muted-foreground text-center mb-6">
-                {isFreelancer 
+                {isFreelancer
                   ? "Start by submitting offers to available projects."
                   : "Offers will appear here when freelancers submit them to your projects."
                 }
@@ -429,11 +427,11 @@ const Offers = () => {
                         <p className="line-clamp-3">{offer.description}</p>
                       </div>
                     )}
-                    
+
                     {!isFreelancer && offer.status === 'PENDING' && (
                       <div className="flex gap-2 pt-2">
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="outline"
                           className="flex-1"
                           onClick={() => handleUpdateOfferStatus(offer.id, 'ACCEPTED')}
@@ -441,8 +439,8 @@ const Offers = () => {
                           <CheckCircle className="w-4 h-4 mr-1" />
                           Accept
                         </Button>
-                        <Button 
-                          size="sm" 
+                        <Button
+                          size="sm"
                           variant="outline"
                           className="flex-1"
                           onClick={() => handleUpdateOfferStatus(offer.id, 'REJECTED')}
@@ -452,7 +450,7 @@ const Offers = () => {
                         </Button>
                       </div>
                     )}
-                    
+
                     <div className="pt-2 border-t border-white/10">
                       <p className="text-xs text-muted-foreground">
                         Submitted {format(new Date(offer.createdAt), 'MMM dd, yyyy')}
@@ -465,7 +463,7 @@ const Offers = () => {
           </div>
         )}
       </div>
-    </div>
+    </MainLayout>
   );
 };
 
