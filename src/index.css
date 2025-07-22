@@ -16,7 +16,7 @@
     --hover-row: 210 20% 98%; /* #F9FAFB */
     
     /* Status Colors */
-    --status-progress: 262 83% 58%; /* Purple */
+    --status-progress: 217 91% 60%; /* Blue */
     --status-complete: 142 71% 45%; /* Green */
     --status-pending: 45 93% 47%; /* Yellow */
     --status-blocked: 0 84% 60%; /* Red */
@@ -27,7 +27,7 @@
     --card-foreground: 222.2 84% 4.9%;
     --popover: 0 0% 100%;
     --popover-foreground: 222.2 84% 4.9%;
-    --primary: 262 83% 58%; /* Purple primary */
+    --primary: 217 91% 60%; /* Blue primary */
     --primary-foreground: 210 40% 98%;
     --secondary: 210 40% 96%;
     --secondary-foreground: 222.2 84% 4.9%;
@@ -39,12 +39,12 @@
     --destructive-foreground: 210 40% 98%;
     --border: 0 0% 88%; /* #E0E0E0 */
     --input: 214.3 31.8% 91.4%;
-    --ring: 262 83% 58%;
+    --ring: 217 91% 60%;
     --success: 142 71% 45%;
     --success-foreground: 0 0% 98%;
     --warning: 45 93% 47%;
     --warning-foreground: 240 10% 3.9%;
-    --tertiary: 271 81% 56%;
+    --tertiary: 217 91% 60%;
     --tertiary-foreground: 0 0% 98%;
     --radius: 0.5rem;
     
@@ -58,7 +58,7 @@
     --sidebar-primary-foreground: 0 0% 98%;
     --sidebar-accent: 240 4.8% 95.9%;
     --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-ring: 262 83% 58%;
+    --sidebar-ring: 217 91% 60%;
     
     /* Text hierarchy */
     --text-primary: 210 11% 15%;
@@ -71,13 +71,13 @@
     --row-hover: 220 43% 98%;
     
     /* Primary hover state */
-    --primary-hover: 261 83% 52%;
+    --primary-hover: 221 83% 53%;
     
     /* Beautiful gradients for light mode */
-    --gradient-primary: linear-gradient(135deg, hsl(262, 83%, 58%), hsl(261, 83%, 52%));
+    --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 60%), hsl(221, 83%, 53%));
     --gradient-secondary: linear-gradient(135deg, hsl(210, 40%, 96%), hsl(220, 13%, 91%));
-    --gradient-tertiary: linear-gradient(135deg, hsl(271, 81%, 56%), hsl(288, 86%, 72%));
-    --gradient-hero: linear-gradient(135deg, hsl(262, 83%, 58%) 0%, hsl(261, 83%, 52%) 50%, hsl(271, 81%, 56%) 100%);
+    --gradient-tertiary: linear-gradient(135deg, hsl(217, 91%, 60%), hsl(224, 76%, 48%));
+    --gradient-hero: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(221, 83%, 53%) 50%, hsl(224, 76%, 48%) 100%);
     --gradient-card: linear-gradient(145deg, hsl(0, 0%, 100%) 0%, hsl(210, 17%, 96%) 100%);
 
     /* Glass morphism for light mode */
@@ -85,9 +85,9 @@
     --glass-border: hsla(0, 0%, 0%, 0.1);
 
     /* Shadows with color for light mode */
-    --shadow-primary: 0 10px 30px -10px hsla(262, 83%, 58%, 0.2);
+    --shadow-primary: 0 10px 30px -10px hsla(217, 91%, 60%, 0.2);
     --shadow-secondary: 0 10px 30px -10px hsla(142, 71%, 45%, 0.2);
-    --shadow-tertiary: 0 10px 30px -10px hsla(271, 81%, 56%, 0.2);
+    --shadow-tertiary: 0 10px 30px -10px hsla(217, 91%, 60%, 0.2);
     --shadow-elegant: 0 25px 50px -12px hsla(0, 0%, 0%, 0.1);
   }
 
@@ -112,7 +112,7 @@
     --secondary-foreground: 0 0% 98%;
 
     /* Tertiary - Freelancer role accent */
-    --tertiary: 271 81% 56%;
+    --tertiary: 224 76% 48%;
     --tertiary-foreground: 0 0% 98%;
 
     --muted: 240 3.7% 15.9%;
@@ -139,8 +139,8 @@
     /* Beautiful gradients for dark mode */
     --gradient-primary: linear-gradient(135deg, hsl(217, 91%, 60%), hsl(221, 83%, 53%));
     --gradient-secondary: linear-gradient(135deg, hsl(142, 71%, 45%), hsl(158, 64%, 52%));
-    --gradient-tertiary: linear-gradient(135deg, hsl(271, 81%, 56%), hsl(288, 86%, 72%));
-    --gradient-hero: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(221, 83%, 53%) 50%, hsl(271, 81%, 56%) 100%);
+    --gradient-tertiary: linear-gradient(135deg, hsl(224, 76%, 48%), hsl(217, 91%, 60%));
+    --gradient-hero: linear-gradient(135deg, hsl(217, 91%, 60%) 0%, hsl(221, 83%, 53%) 50%, hsl(224, 76%, 48%) 100%);
     --gradient-card: linear-gradient(145deg, hsl(240, 3.7%, 15.9%) 0%, hsl(240, 3.7%, 12%) 100%);
 
     /* Glass morphism for dark mode */
@@ -150,7 +150,7 @@
     /* Shadows with color for dark mode */
     --shadow-primary: 0 10px 30px -10px hsla(217, 91%, 60%, 0.3);
     --shadow-secondary: 0 10px 30px -10px hsla(142, 71%, 45%, 0.3);
-    --shadow-tertiary: 0 10px 30px -10px hsla(271, 81%, 56%, 0.3);
+    --shadow-tertiary: 0 10px 30px -10px hsla(224, 76%, 48%, 0.3);
     --shadow-elegant: 0 25px 50px -12px hsla(0, 0%, 0%, 0.5);
 
     --sidebar-background: 240 5.9% 10%;
@@ -199,7 +199,7 @@
   }
   
   .status-progress {
-    @apply bg-purple-100 text-purple-700;
+    @apply bg-blue-100 text-blue-700;
   }
   
   .status-complete {

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -9,9 +9,11 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, FileText, DollarSign, Clock, Plus, CheckCircle, XCircle } from 'lucide-react';
+import { ArrowLeft, FileText, DollarSign, Clock, Plus, CheckCircle, XCircle, Grid, List, Download, Filter, Search, Calendar, User } from 'lucide-react';
 import { format } from 'date-fns';
 import { MainLayout } from '@/components/layout/MainLayout';
 
@@ -59,6 +61,13 @@ const Offers = () => {
     deliveryTime: '',
     description: ''
   });
+  
+  // View and filter states
+  const [viewMode, setViewMode] = useState<'cards' | 'table'>('cards');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
+  const [sortBy, setSortBy] = useState<'createdAt' | 'price' | 'deliveryTime'>('createdAt');
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
   useEffect(() => {
     if (!user) {
@@ -267,6 +276,83 @@ const Offers = () => {
     }
   };
 
+  // Filter and sort offers
+  const filteredAndSortedOffers = useMemo(() => {
+    let filtered = offers.filter(offer => {
+      const matchesSearch = searchTerm === '' || 
+        offer.Project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        offer.description?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (offer.User?.name && offer.User.name.toLowerCase().includes(searchTerm.toLowerCase())) ||
+        (offer.User?.email && offer.User.email.toLowerCase().includes(searchTerm.toLowerCase()));
+      
+      const matchesStatus = statusFilter === 'ALL' || offer.status === statusFilter;
+      
+      return matchesSearch && matchesStatus;
+    });
+
+    // Sort offers
+    filtered.sort((a, b) => {
+      let aValue, bValue;
+      
+      switch (sortBy) {
+        case 'price':
+          aValue = a.price;
+          bValue = b.price;
+          break;
+        case 'deliveryTime':
+          aValue = a.deliveryTime;
+          bValue = b.deliveryTime;
+          break;
+        default: // createdAt
+          aValue = new Date(a.createdAt).getTime();
+          bValue = new Date(b.createdAt).getTime();
+      }
+      
+      if (sortOrder === 'asc') {
+        return aValue - bValue;
+      } else {
+        return bValue - aValue;
+      }
+    });
+
+    return filtered;
+  }, [offers, searchTerm, statusFilter, sortBy, sortOrder]);
+
+  // Export functionality
+  const handleExport = () => {
+    const csvData = filteredAndSortedOffers.map(offer => ({
+      'Project Title': offer.Project.title,
+      'Price': `$${offer.price.toLocaleString()}`,
+      'Delivery Time': `${offer.deliveryTime} days`,
+      'Status': offer.status,
+      'Freelancer': offer.User?.name || offer.User?.email || 'N/A',
+      'Description': offer.description || 'N/A',
+      'Submitted Date': format(new Date(offer.createdAt), 'MMM dd, yyyy')
+    }));
+
+    const csvContent = [
+      Object.keys(csvData[0] || {}).join(','),
+      ...csvData.map(row => Object.values(row).map(value => 
+        typeof value === 'string' && value.includes(',') ? `"${value}"` : value
+      ).join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', `offers-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    toast({
+      title: "Export completed",
+      description: `Exported ${filteredAndSortedOffers.length} offers to CSV`,
+    });
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -396,71 +482,273 @@ const Offers = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {offers.map((offer) => (
-              <Card key={offer.id} className="bg-gradient-card border-white/10 hover:shadow-secondary transition-all duration-300">
-                <CardHeader>
-                  <div className="flex items-start justify-between">
-                    <CardTitle className="text-lg line-clamp-2">{offer.Project.title}</CardTitle>
-                    <Badge className={getStatusColor(offer.status)}>
-                      {offer.status}
-                    </Badge>
+          <>
+            {/* Filter and View Controls */}
+            <Card className="mb-6 bg-gradient-to-r from-card via-card to-card/80 border border-primary/10">
+              <CardHeader className="pb-4">
+                <div className="flex flex-col space-y-4 lg:flex-row lg:items-center lg:justify-between lg:space-y-0">
+                  <div className="flex items-center gap-4">
+                    <div className="flex items-center gap-2">
+                      <Filter className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium">Filters</span>
+                    </div>
+                    <Separator orientation="vertical" className="h-4" />
+                    <span className="text-sm text-muted-foreground">
+                      {filteredAndSortedOffers.length} of {offers.length} offers
+                    </span>
                   </div>
-                  {!isFreelancer && offer.User && (
-                    <CardDescription>
-                      By: {offer.User.name || offer.User.email}
-                    </CardDescription>
-                  )}
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-2 text-sm">
-                      <DollarSign className="w-4 h-4 text-muted-foreground" />
-                      <span className="font-medium">${offer.price.toLocaleString()}</span>
-                    </div>
-                    <div className="flex items-center gap-2 text-sm">
-                      <Clock className="w-4 h-4 text-muted-foreground" />
-                      <span>{offer.deliveryTime} day{offer.deliveryTime !== 1 ? 's' : ''}</span>
-                    </div>
-                    {offer.description && (
-                      <div className="text-sm text-muted-foreground">
-                        <p className="line-clamp-3">{offer.description}</p>
-                      </div>
-                    )}
-
-                    {!isFreelancer && offer.status === 'PENDING' && (
-                      <div className="flex gap-2 pt-2">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => handleUpdateOfferStatus(offer.id, 'ACCEPTED')}
-                        >
-                          <CheckCircle className="w-4 h-4 mr-1" />
-                          Accept
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="flex-1"
-                          onClick={() => handleUpdateOfferStatus(offer.id, 'REJECTED')}
-                        >
-                          <XCircle className="w-4 h-4 mr-1" />
-                          Reject
-                        </Button>
-                      </div>
-                    )}
-
-                    <div className="pt-2 border-t border-white/10">
-                      <p className="text-xs text-muted-foreground">
-                        Submitted {format(new Date(offer.createdAt), 'MMM dd, yyyy')}
-                      </p>
+                  
+                  <div className="flex items-center gap-3">
+                    {/* Export Button */}
+                    <Button variant="outline" onClick={handleExport} className="gap-2">
+                      <Download className="w-4 h-4" />
+                      Export CSV
+                    </Button>
+                    
+                    {/* View Toggle */}
+                    <div className="flex items-center gap-1 bg-muted/50 rounded-lg p-1">
+                      <Button
+                        variant={viewMode === 'cards' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setViewMode('cards')}
+                        className="gap-2"
+                      >
+                        <Grid className="w-4 h-4" />
+                        Cards
+                      </Button>
+                      <Button
+                        variant={viewMode === 'table' ? 'default' : 'ghost'}
+                        size="sm"
+                        onClick={() => setViewMode('table')}
+                        className="gap-2"
+                      >
+                        <List className="w-4 h-4" />
+                        Table
+                      </Button>
                     </div>
                   </div>
-                </CardContent>
+                </div>
+              </CardHeader>
+              
+              <CardContent className="pt-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                  {/* Search */}
+                  <div className="relative">
+                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search offers..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-9"
+                    />
+                  </div>
+                  
+                  {/* Status Filter */}
+                  <Select value={statusFilter} onValueChange={setStatusFilter}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="All Statuses" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="ALL">All Statuses</SelectItem>
+                      <SelectItem value="PENDING">Pending</SelectItem>
+                      <SelectItem value="ACCEPTED">Accepted</SelectItem>
+                      <SelectItem value="REJECTED">Rejected</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Sort By */}
+                  <Select value={sortBy} onValueChange={(value: any) => setSortBy(value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Sort by" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="createdAt">Date Submitted</SelectItem>
+                      <SelectItem value="price">Price</SelectItem>
+                      <SelectItem value="deliveryTime">Delivery Time</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  
+                  {/* Sort Order */}
+                  <Select value={sortOrder} onValueChange={(value: any) => setSortOrder(value)}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="desc">Descending</SelectItem>
+                      <SelectItem value="asc">Ascending</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Content Area */}
+            {viewMode === 'cards' ? (
+              /* Cards View */
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {filteredAndSortedOffers.map((offer) => (
+                  <Card key={offer.id} className="bg-gradient-card border-white/10 hover:shadow-lg transition-all duration-300">
+                    <CardHeader>
+                      <div className="flex items-start justify-between">
+                        <CardTitle className="text-lg line-clamp-2">{offer.Project.title}</CardTitle>
+                        <Badge className={getStatusColor(offer.status)}>
+                          {offer.status}
+                        </Badge>
+                      </div>
+                      {!isFreelancer && offer.User && (
+                        <CardDescription className="flex items-center gap-2">
+                          <User className="w-4 h-4" />
+                          By: {offer.User.name || offer.User.email}
+                        </CardDescription>
+                      )}
+                    </CardHeader>
+                    <CardContent>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-2 text-sm">
+                          <DollarSign className="w-4 h-4 text-green-600" />
+                          <span className="font-medium text-green-600">${offer.price.toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm">
+                          <Clock className="w-4 h-4 text-blue-600" />
+                          <span className="text-blue-600">{offer.deliveryTime} day{offer.deliveryTime !== 1 ? 's' : ''}</span>
+                        </div>
+                        {offer.description && (
+                          <div className="text-sm text-muted-foreground">
+                            <p className="line-clamp-3">{offer.description}</p>
+                          </div>
+                        )}
+
+                        {!isFreelancer && offer.status === 'PENDING' && (
+                          <div className="flex gap-2 pt-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 border-green-200 text-green-700 hover:bg-green-50"
+                              onClick={() => handleUpdateOfferStatus(offer.id, 'ACCEPTED')}
+                            >
+                              <CheckCircle className="w-4 h-4 mr-1" />
+                              Accept
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1 border-red-200 text-red-700 hover:bg-red-50"
+                              onClick={() => handleUpdateOfferStatus(offer.id, 'REJECTED')}
+                            >
+                              <XCircle className="w-4 h-4 mr-1" />
+                              Reject
+                            </Button>
+                          </div>
+                        )}
+
+                        <div className="pt-2 border-t border-border/50">
+                          <div className="flex items-center justify-between text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1">
+                              <Calendar className="w-3 h-3" />
+                              {format(new Date(offer.createdAt), 'MMM dd, yyyy')}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              /* Table View */
+              <Card className="overflow-hidden">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow className="bg-muted/50">
+                        <TableHead className="font-semibold">Project</TableHead>
+                        {!isFreelancer && <TableHead className="font-semibold">Freelancer</TableHead>}
+                        <TableHead className="font-semibold">Price</TableHead>
+                        <TableHead className="font-semibold">Delivery</TableHead>
+                        <TableHead className="font-semibold">Status</TableHead>
+                        <TableHead className="font-semibold">Submitted</TableHead>
+                        <TableHead className="font-semibold">Description</TableHead>
+                        {!isFreelancer && <TableHead className="font-semibold text-center">Actions</TableHead>}
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredAndSortedOffers.map((offer) => (
+                        <TableRow key={offer.id} className="hover:bg-muted/30">
+                          <TableCell className="font-medium max-w-[200px]">
+                            <div className="line-clamp-2">{offer.Project.title}</div>
+                          </TableCell>
+                          {!isFreelancer && (
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <User className="w-4 h-4 text-muted-foreground" />
+                                <span className="text-sm">
+                                  {offer.User?.name || offer.User?.email || 'N/A'}
+                                </span>
+                              </div>
+                            </TableCell>
+                          )}
+                          <TableCell>
+                            <div className="flex items-center gap-1 text-green-600 font-medium">
+                              <DollarSign className="w-4 h-4" />
+                              ${offer.price.toLocaleString()}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1 text-blue-600">
+                              <Clock className="w-4 h-4" />
+                              {offer.deliveryTime} day{offer.deliveryTime !== 1 ? 's' : ''}
+                            </div>
+                          </TableCell>
+                          <TableCell>
+                            <Badge className={getStatusColor(offer.status)}>
+                              {offer.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <div className="flex items-center gap-1 text-sm text-muted-foreground">
+                              <Calendar className="w-3 h-3" />
+                              {format(new Date(offer.createdAt), 'MMM dd, yyyy')}
+                            </div>
+                          </TableCell>
+                          <TableCell className="max-w-[250px]">
+                            <div className="line-clamp-2 text-sm text-muted-foreground">
+                              {offer.description || 'No description'}
+                            </div>
+                          </TableCell>
+                          {!isFreelancer && (
+                            <TableCell>
+                              {offer.status === 'PENDING' ? (
+                                <div className="flex gap-1">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2 border-green-200 text-green-700 hover:bg-green-50"
+                                    onClick={() => handleUpdateOfferStatus(offer.id, 'ACCEPTED')}
+                                  >
+                                    <CheckCircle className="w-3 h-3" />
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 px-2 border-red-200 text-red-700 hover:bg-red-50"
+                                    onClick={() => handleUpdateOfferStatus(offer.id, 'REJECTED')}
+                                  >
+                                    <XCircle className="w-3 h-3" />
+                                  </Button>
+                                </div>
+                              ) : (
+                                <span className="text-xs text-muted-foreground">No actions</span>
+                              )}
+                            </TableCell>
+                          )}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </div>
               </Card>
-            ))}
-          </div>
+            )}
+          </>
         )}
       </div>
     </MainLayout>

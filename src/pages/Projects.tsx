@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useAuth } from '@/components/auth/AuthProvider';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
@@ -14,7 +14,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { ArrowLeft, Plus, Calendar, DollarSign, Link, Briefcase, Clock, FileText, Eye, Edit, Search, Filter, Grid, List, ChevronDown, Users, Star, TrendingUp, Clock3, CheckCircle, XCircle, AlertCircle, Send, User, MapPin, Award } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, DollarSign, Link, Briefcase, Clock, FileText, Eye, Edit, Search, Filter, Grid, List, ChevronDown, Users, Star, TrendingUp, Clock3, CheckCircle, XCircle, AlertCircle, Send, User, MapPin, Award, ArrowUpDown, Download } from 'lucide-react';
+import { ProjectTable } from '@/components/project/ProjectTable';
 import { format } from 'date-fns';
 
 interface Project {
@@ -65,7 +66,11 @@ const Projects = () => {
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [searchTerm, setSearchTerm] = useState('');
-  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('card');
+  const [sortField, setSortField] = useState<string>('createdAt');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('desc');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'OPEN' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'>('ALL');
+  const [sortOption, setSortOption] = useState<'CREATED_AT' | 'DEADLINE' | 'BUDGET'>('CREATED_AT');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -312,6 +317,38 @@ const Projects = () => {
     }
   };
 
+  // Filter projects based on selected category, search term, and status
+  const filteredProjects = useMemo(() => {
+    return projects.filter(project => {
+      const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                           project.description.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesStatus = statusFilter === 'ALL' || project.status === statusFilter;
+      
+      if (!matchesSearch || !matchesStatus) return false;
+      
+      if (selectedCategory === 'all') return true;
+      if (selectedCategory === 'global') return !project.categoryId;
+      return project.categoryId === selectedCategory;
+    });
+  }, [projects, searchTerm, statusFilter, selectedCategory]);
+
+  // Sort projects based on the selected sort option
+  const sortedProjects = useMemo(() => {
+    return [...filteredProjects].sort((a, b) => {
+      if (sortOption === 'CREATED_AT') {
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+      } else if (sortOption === 'DEADLINE') {
+        if (a.deadline && b.deadline) {
+          return new Date(a.deadline).getTime() - new Date(b.deadline).getTime();
+        }
+        return 0;
+      } else if (sortOption === 'BUDGET') {
+        return (b.budget || 0) - (a.budget || 0);
+      }
+      return 0;
+    });
+  }, [filteredProjects, sortOption]);
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -338,24 +375,76 @@ const Projects = () => {
     navigate(`/projects/${project.id}`);
   };
 
-  // Filter projects based on selected category and search term
-  const filteredProjects = projects.filter(project => {
-    const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         project.description.toLowerCase().includes(searchTerm.toLowerCase());
-    
-    if (!matchesSearch) return false;
-    
-    if (selectedCategory === 'all') return true;
-    if (selectedCategory === 'global') return !project.categoryId;
-    return project.categoryId === selectedCategory;
-  });
+  const handleSort = (field: string) => {
+    if (sortField === field) {
+      setSortDirection(sortDirection === 'asc' ? 'desc' : 'asc');
+    } else {
+      setSortField(field);
+      setSortDirection('desc');
+    }
+  };
+
+  const handleExport = () => {
+    try {
+      const csvHeaders = [
+        'ID',
+        'Title',
+        'Description',
+        'Status',
+        'Budget',
+        'Deadline',
+        'Category',
+        'Created At'
+      ];
+
+      const csvData = sortedProjects.map(project => {
+        const category = categories.find(c => c.id === project.categoryId);
+        return [
+          project.id,
+          `"${project.title}"`,
+          `"${project.description}"`,
+          project.status,
+          project.budget ? `$${project.budget}` : 'N/A',
+          project.deadline ? format(new Date(project.deadline), 'yyyy-MM-dd') : 'N/A',
+          category ? category.title : 'Global',
+          format(new Date(project.createdAt), 'yyyy-MM-dd')
+        ];
+      });
+
+      const csvContent = [
+        csvHeaders.join(','),
+        ...csvData.map(row => row.join(','))
+      ].join('\n');
+
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const link = document.createElement('a');
+      const url = URL.createObjectURL(blob);
+      link.setAttribute('href', url);
+      link.setAttribute('download', `projects-${format(new Date(), 'yyyy-MM-dd')}.csv`);
+      link.style.visibility = 'hidden';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
+      toast({
+        title: "Export successful",
+        description: `Exported ${sortedProjects.length} projects to CSV`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Export failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   // Group projects by category
   const projectsByCategory = {
-    all: filteredProjects,
-    global: filteredProjects.filter(p => !p.categoryId),
+    all: sortedProjects,
+    global: sortedProjects.filter(p => !p.categoryId),
     ...categories.reduce((acc, category) => {
-      acc[category.id] = filteredProjects.filter(p => p.categoryId === category.id);
+      acc[category.id] = sortedProjects.filter(p => p.categoryId === category.id);
       return acc;
     }, {} as Record<string, typeof projects>)
   };
@@ -619,19 +708,31 @@ const Projects = () => {
                 />
               </div>
               <div className="flex items-center gap-2">
-                <Button
-                  variant={viewMode === 'grid' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('grid')}
-                >
-                  <Grid className="w-4 h-4" />
-                </Button>
-                <Button
-                  variant={viewMode === 'list' ? 'default' : 'outline'}
-                  size="sm"
-                  onClick={() => setViewMode('list')}
-                >
-                  <List className="w-4 h-4" />
+                <Select value={statusFilter} onValueChange={(value) => setStatusFilter(value as any)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ALL">All Status</SelectItem>
+                    <SelectItem value="OPEN">Open</SelectItem>
+                    <SelectItem value="IN_PROGRESS">In Progress</SelectItem>
+                    <SelectItem value="COMPLETED">Completed</SelectItem>
+                    <SelectItem value="CANCELLED">Cancelled</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select value={sortOption} onValueChange={(value) => setSortOption(value as any)}>
+                  <SelectTrigger className="w-[140px]">
+                    <SelectValue placeholder="Sort by" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CREATED_AT">Created Date</SelectItem>
+                    <SelectItem value="DEADLINE">Deadline</SelectItem>
+                    <SelectItem value="BUDGET">Budget</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Button variant="outline" size="sm" onClick={handleExport}>
+                  <Download className="w-4 h-4 mr-2" />
+                  Export
                 </Button>
               </div>
             </div>
@@ -657,7 +758,7 @@ const Projects = () => {
 
               {/* Projects Content */}
               <TabsContent value={selectedCategory} className="mt-6">
-                {filteredProjects.length === 0 ? (
+                {sortedProjects.length === 0 ? (
                   <Card className="bg-card border-border">
                     <CardContent className="flex flex-col items-center justify-center py-16">
                       <Briefcase className="w-16 h-16 text-muted-foreground mb-4" />
@@ -676,15 +777,22 @@ const Projects = () => {
                       )}
                     </CardContent>
                   </Card>
-                ) : (
-                  <div className={viewMode === 'grid' 
-                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" 
-                    : "space-y-4"
-                  }>
-                    {filteredProjects.map((project) => (
-                      <ProjectCard key={project.id} project={project} />
-                    ))}
-                  </div>
+) : (
+                  <ProjectTable 
+                    projects={sortedProjects}
+                    isManager={isManager}
+                    userOffers={userOffers}
+                    onViewProject={handleViewProject}
+                    onSubmitOffer={handleSubmitOfferClick}
+                    onEditProject={handleEditProject}
+                    viewMode={viewMode}
+                    onViewModeChange={setViewMode}
+                    showViewToggle={true}
+                    title={`${selectedCategory === 'all' ? 'All Projects' : selectedCategory === 'global' ? 'Global Projects' : categories.find(c => c.id === selectedCategory)?.title || 'Projects'} (${sortedProjects.length})`}
+                    onSort={handleSort}
+                    sortField={sortField}
+                    sortDirection={sortDirection}
+                  />
                 )}
               </TabsContent>
             </Tabs>

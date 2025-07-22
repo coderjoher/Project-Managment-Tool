@@ -5,10 +5,12 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, Copy, Plus, Check, User } from 'lucide-react';
+import { ArrowLeft, Copy, Plus, Check, User, Grid, List, Edit, Trash, Search, Users, Mail, Calendar } from 'lucide-react';
 import { MainLayout } from '@/components/layout/MainLayout';
+import { format } from 'date-fns';
 
 interface UserProfile {
   id: string;
@@ -26,6 +28,14 @@ interface ManagerInvite {
   used_at: string | null;
 }
 
+interface Manager {
+  id: string;
+  name: string | null;
+  email: string;
+  createdAt: string;
+  is_superadmin: boolean | null;
+}
+
 const SuperAdmin = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -35,6 +45,10 @@ const SuperAdmin = () => {
   const [generatingLink, setGeneratingLink] = useState(false);
   const [invites, setInvites] = useState<ManagerInvite[]>([]);
   const [urlCopied, setUrlCopied] = useState<Record<string, boolean>>({});
+  const [managers, setManagers] = useState<Manager[]>([]);
+  const [filter, setFilter] = useState('');
+  const [viewMode, setViewMode] = useState<'table' | 'card'>('table');
+  const [loadingManagers, setLoadingManagers] = useState(false);
 
   useEffect(() => {
     if (!user) {
@@ -68,8 +82,9 @@ const SuperAdmin = () => {
         return;
       }
 
-      // Fetch manager invites
+      // Fetch manager invites and managers
       await fetchManagerInvites();
+      await fetchManagers();
     } catch (error: any) {
       toast({
         title: "Error loading profile",
@@ -94,6 +109,29 @@ const SuperAdmin = () => {
       setInvites(data || []);
     } catch (error: any) {
       console.error('Error fetching invites:', error);
+    }
+  };
+
+  const fetchManagers = async () => {
+    setLoadingManagers(true);
+    try {
+      const { data, error } = await supabase
+        .from('User')
+        .select('id, name, email, createdAt, is_superadmin')
+        .eq('role', 'MANAGER')
+        .order('createdAt', { ascending: false });
+
+      if (error) throw error;
+      setManagers(data || []);
+    } catch (error: any) {
+      console.error('Error fetching managers:', error);
+      toast({
+        title: "Error fetching managers",
+        description: error.message,
+        variant: "destructive",
+      });
+    } finally {
+      setLoadingManagers(false);
     }
   };
 
@@ -176,6 +214,43 @@ const SuperAdmin = () => {
     }
   };
 
+
+  const deleteManager = async (managerId: string) => {
+    if (!confirm('Are you sure you want to delete this manager? This action cannot be undone.')) {
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('User')
+        .delete()
+        .eq('id', managerId);
+
+      if (error) throw error;
+
+      toast({
+        title: "Success",
+        description: "Manager deleted successfully",
+      });
+
+      await fetchManagers();
+    } catch (error: any) {
+      toast({
+        title: "Error deleting manager",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const filteredManagers = managers.filter(manager => {
+    const searchTerm = filter.toLowerCase();
+    return (
+      (manager.name?.toLowerCase().includes(searchTerm) ?? false) ||
+      manager.email.toLowerCase().includes(searchTerm)
+    );
+  });
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -209,7 +284,7 @@ const SuperAdmin = () => {
           <div className="flex items-center gap-4">
             <div>
               <h1 className="text-3xl font-bold">SuperAdmin</h1>
-              <p className="text-muted-foreground">Manage manager signup links</p>
+              <p className="text-muted-foreground">Manage managers and signup links</p>
             </div>
           </div>
           <Button
@@ -231,8 +306,149 @@ const SuperAdmin = () => {
           </Button>
         </div>
 
-        {/* Active Links */}
+        {/* Managers Management */}
         <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <div className="flex items-center justify-between">
+                <div>
+                  <CardTitle className="flex items-center gap-2">
+                    <Users className="w-5 h-5" />
+                    Managers ({managers.length})
+                  </CardTitle>
+                  <CardDescription>
+                    Manage existing manager accounts
+                  </CardDescription>
+                </div>
+                <div className="flex items-center gap-2">
+                  <Button
+                    variant={viewMode === 'table' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('table')}
+                  >
+                    <List className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant={viewMode === 'card' ? 'default' : 'outline'}
+                    size="sm"
+                    onClick={() => setViewMode('card')}
+                  >
+                    <Grid className="w-4 h-4" />
+                  </Button>
+                </div>
+              </div>
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Search managers by name or email..."
+                  value={filter}
+                  onChange={(e) => setFilter(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+            </CardHeader>
+            <CardContent>
+              {loadingManagers ? (
+                <div className="flex items-center justify-center py-8">
+                  <div className="w-8 h-8 border-2 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                  <span className="ml-2">Loading managers...</span>
+                </div>
+              ) : filteredManagers.length === 0 ? (
+                <div className="text-center py-8">
+                  <Users className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+                  <p className="text-muted-foreground">
+                    {filter ? 'No managers found matching your search' : 'No managers found'}
+                  </p>
+                </div>
+              ) : viewMode === 'table' ? (
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b">
+                        <th className="text-left p-2">Name</th>
+                        <th className="text-left p-2">Email</th>
+                        <th className="text-left p-2">Created</th>
+                        <th className="text-left p-2">Status</th>
+                        <th className="text-left p-2">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredManagers.map((manager) => (
+                        <tr key={manager.id} className="border-b hover:bg-muted/50">
+                          <td className="p-2 font-medium">{manager.name || 'N/A'}</td>
+                          <td className="p-2 text-muted-foreground">{manager.email}</td>
+                          <td className="p-2 text-muted-foreground">
+                            {format(new Date(manager.createdAt), 'MMM dd, yyyy')}
+                          </td>
+                          <td className="p-2">
+                            <Badge variant={manager.is_superadmin ? 'default' : 'secondary'}>
+                              {manager.is_superadmin ? 'Superadmin' : 'Manager'}
+                            </Badge>
+                          </td>
+                          <td className="p-2">
+                            <div className="flex items-center gap-2">
+                              <Button
+                                variant="destructive"
+                                size="sm"
+                                onClick={() => deleteManager(manager.id)}
+                              >
+                                <Trash className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {filteredManagers.map((manager) => (
+                    <Card key={manager.id} className="">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between mb-3">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                              <User className="w-5 h-5 text-primary" />
+                            </div>
+                            <div>
+                              <h3 className="font-medium">{manager.name || 'N/A'}</h3>
+                              <Badge variant={manager.is_superadmin ? 'default' : 'secondary'} className="text-xs">
+                                {manager.is_superadmin ? 'Superadmin' : 'Manager'}
+                              </Badge>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="space-y-2 mb-4">
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Mail className="w-4 h-4" />
+                            {manager.email}
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Calendar className="w-4 h-4" />
+                            {format(new Date(manager.createdAt), 'MMM dd, yyyy')}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="flex-1"
+                            onClick={() => deleteManager(manager.id)}
+                          >
+                            <Trash className="w-4 h-4" />
+                            Delete Manager
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Manager Signup Links */}
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
