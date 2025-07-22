@@ -9,9 +9,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { ArrowLeft, DollarSign, TrendingUp, Send, Gift, Plus, ArrowUp, Users, Eye } from 'lucide-react';
+import { ArrowLeft, DollarSign, TrendingUp, Send, Gift, Plus, ArrowUp, Users, Eye, CreditCard, Wallet, ChevronRight, Calendar, Filter, Download, MoreHorizontal, Copy } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format } from 'date-fns';
 

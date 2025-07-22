@@ -9,11 +9,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { MainLayout } from '@/components/layout/MainLayout';
-import { ProjectTable } from '@/components/project/ProjectTable';
-import { ArrowLeft, Plus, Calendar, DollarSign, Link, Briefcase, Clock, FileText, Eye, Edit } from 'lucide-react';
+import { ArrowLeft, Plus, Calendar, DollarSign, Link, Briefcase, Clock, FileText, Eye, Edit, Search, Filter, Grid, List, ChevronDown, Users, Star, TrendingUp, Clock3, CheckCircle, XCircle, AlertCircle, Send, User, MapPin, Award } from 'lucide-react';
 import { format } from 'date-fns';
 
 interface Project {
@@ -62,6 +63,9 @@ const Projects = () => {
   const [loading, setLoading] = useState(true);
   const [userOffers, setUserOffers] = useState<{ [projectId: string]: Offer }>({});
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState<string>('all');
+  const [searchTerm, setSearchTerm] = useState('');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -334,6 +338,132 @@ const Projects = () => {
     navigate(`/projects/${project.id}`);
   };
 
+  // Filter projects based on selected category and search term
+  const filteredProjects = projects.filter(project => {
+    const matchesSearch = project.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         project.description.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    if (!matchesSearch) return false;
+    
+    if (selectedCategory === 'all') return true;
+    if (selectedCategory === 'global') return !project.categoryId;
+    return project.categoryId === selectedCategory;
+  });
+
+  // Group projects by category
+  const projectsByCategory = {
+    all: filteredProjects,
+    global: filteredProjects.filter(p => !p.categoryId),
+    ...categories.reduce((acc, category) => {
+      acc[category.id] = filteredProjects.filter(p => p.categoryId === category.id);
+      return acc;
+    }, {} as Record<string, typeof projects>)
+  };
+
+  // Get category stats
+  const getCategoryStats = () => {
+    const stats = {
+      all: projects.length,
+      global: projects.filter(p => !p.categoryId).length
+    };
+    
+    categories.forEach(category => {
+      stats[category.id] = projects.filter(p => p.categoryId === category.id).length;
+    });
+    
+    return stats;
+  };
+
+  const categoryStats = getCategoryStats();
+
+  const ProjectCard = ({ project }: { project: Project }) => {
+    const userOffer = userOffers[project.id];
+    const category = categories.find(c => c.id === project.categoryId);
+    
+    return (
+      <Card className="group hover:shadow-lg transition-all duration-200 border-border hover:border-primary/30">
+        <CardHeader className="pb-3">
+          <div className="flex items-start justify-between">
+            <div className="flex-1">
+              <CardTitle className="text-lg line-clamp-2 group-hover:text-primary transition-colors">
+                {project.title}
+              </CardTitle>
+              <CardDescription className="mt-2 line-clamp-3">
+                {project.description}
+              </CardDescription>
+            </div>
+            <Badge className={getStatusColor(project.status)}>
+              {project.status.replace('_', ' ')}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            {/* Category & Stats */}
+            <div className="flex items-center justify-between">
+              <Badge variant="outline" className="text-xs">
+                {category ? category.title : 'Global'}
+              </Badge>
+              {!isManager && userOffer && (
+                <Badge className={getOfferStatusColor(userOffer.status)}>
+                  {userOffer.status}
+                </Badge>
+              )}
+            </div>
+            
+            {/* Project Details */}
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              {project.budget && (
+                <div className="flex items-center gap-2">
+                  <DollarSign className="w-4 h-4 text-muted-foreground" />
+                  <span className="font-medium">${project.budget.toLocaleString()}</span>
+                </div>
+              )}
+              {project.deadline && (
+                <div className="flex items-center gap-2">
+                  <Calendar className="w-4 h-4 text-muted-foreground" />
+                  <span>{format(new Date(project.deadline), 'MMM dd, yyyy')}</span>
+                </div>
+              )}
+            </div>
+            
+            {/* Actions */}
+            <div className="flex gap-2 pt-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => handleViewProject(project.id)}
+                className="flex-1"
+              >
+                <Eye className="w-4 h-4 mr-2" />
+                View
+              </Button>
+              {!isManager && project.status === 'OPEN' && !userOffer && (
+                <Button
+                  size="sm"
+                  onClick={() => handleSubmitOfferClick(project)}
+                  className="flex-1"
+                >
+                  <Send className="w-4 h-4 mr-2" />
+                  Submit Offer
+                </Button>
+              )}
+              {isManager && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleEditProject(project)}
+                >
+                  <Edit className="w-4 h-4" />
+                </Button>
+              )}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  };
+
   return (
     <MainLayout userProfile={userProfile}>
       <div className="space-y-6 p-4">
@@ -476,22 +606,88 @@ const Projects = () => {
             </CardContent>
           </Card>
         ) : (
-          <div className="space-y-4">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-              <h2 className="text-lg font-semibold text-text-primary">
-                {isManager ? 'Your Projects' : 'Available Projects'} ({projects.length})
-              </h2>
+          <div className="space-y-6">
+            {/* Search and Filter Bar */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="relative flex-1">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+                <Input
+                  placeholder="Search projects..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-10"
+                />
+              </div>
+              <div className="flex items-center gap-2">
+                <Button
+                  variant={viewMode === 'grid' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('grid')}
+                >
+                  <Grid className="w-4 h-4" />
+                </Button>
+                <Button
+                  variant={viewMode === 'list' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setViewMode('list')}
+                >
+                  <List className="w-4 h-4" />
+                </Button>
+              </div>
             </div>
 
-            {/* Project Table */}
-            <ProjectTable 
-              projects={projects}
-              isManager={isManager}
-              userOffers={userOffers}
-              onViewProject={handleViewProject}
-              onSubmitOffer={handleSubmitOfferClick}
-              onEditProject={handleEditProject}
-            />
+            {/* Category Tabs */}
+            <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="w-full">
+              <TabsList className="grid w-full grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+                <TabsTrigger value="all" className="flex items-center gap-2">
+                  <Briefcase className="w-4 h-4" />
+                  All ({categoryStats.all})
+                </TabsTrigger>
+                <TabsTrigger value="global" className="flex items-center gap-2">
+                  <Award className="w-4 h-4" />
+                  Global ({categoryStats.global})
+                </TabsTrigger>
+                {categories.map((category) => (
+                  <TabsTrigger key={category.id} value={category.id} className="flex items-center gap-2">
+                    <Star className="w-4 h-4" />
+                    {category.title} ({categoryStats[category.id] || 0})
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              {/* Projects Content */}
+              <TabsContent value={selectedCategory} className="mt-6">
+                {filteredProjects.length === 0 ? (
+                  <Card className="bg-card border-border">
+                    <CardContent className="flex flex-col items-center justify-center py-16">
+                      <Briefcase className="w-16 h-16 text-muted-foreground mb-4" />
+                      <h3 className="text-xl font-semibold mb-2">No projects found</h3>
+                      <p className="text-muted-foreground text-center mb-6">
+                        {searchTerm
+                          ? `No projects match your search "${searchTerm}"`
+                          : `No projects in ${selectedCategory === 'all' ? 'any category' : selectedCategory === 'global' ? 'global category' : categories.find(c => c.id === selectedCategory)?.title || 'this category'}`
+                        }
+                      </p>
+                      {isManager && (
+                        <Button onClick={() => setIsCreateDialogOpen(true)}>
+                          <Plus className="w-4 h-4 mr-2" />
+                          Create New Project
+                        </Button>
+                      )}
+                    </CardContent>
+                  </Card>
+                ) : (
+                  <div className={viewMode === 'grid' 
+                    ? "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" 
+                    : "space-y-4"
+                  }>
+                    {filteredProjects.map((project) => (
+                      <ProjectCard key={project.id} project={project} />
+                    ))}
+                  </div>
+                )}
+              </TabsContent>
+            </Tabs>
           </div>
         )}
         
